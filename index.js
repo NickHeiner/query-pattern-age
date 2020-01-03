@@ -7,6 +7,8 @@ const readFile = promisify(require('fs').readFile.bind(require('fs')));
 const execa = require('execa');
 const moment = require('moment');
 const log = require('nth-log');
+const pLimit = require('p-limit');
+const os = require('os');
 
 /**
  * @param {object} options 
@@ -15,7 +17,10 @@ const log = require('nth-log');
  * @param {string[]} options.paths
  */
 async function queryPatternAge(options) {
-  const files = _.flatten(await Promise.all(options.paths.map(path => globby(path))));
+  const files = await log.logStep(
+    {step: 'finding files via globby', level: 'debug'},
+    async () => _.flatten(await Promise.all(options.paths.map(path => globby(path))))
+  );
   const eslintMainPath = getEslintPath();
   
   /** @type {import("eslint")} */
@@ -23,10 +28,15 @@ async function queryPatternAge(options) {
   const cliEngine = new CLIEngine({});
   const linter = new Linter();
 
-  const eslintReport = await getEslintReports(cliEngine, linter, files, options.astSelector);
+  const eslintReport = await log.logStep(
+    {step: 'running ESLint on files', level: 'debug', countFiles: files.length}, 
+    () => getEslintReports(cliEngine, linter, files, options.astSelector)
+  );
   const locations = getLocations(eslintReport);
-  log.trace('Getting git timestamps');
-  const gitTimestamps = await getGitTimestamps(locations);
+  const gitTimestamps = await log.logStep(
+    {step: 'getting git timestamps', level: 'debug', countFiles: _.size(files)},
+    (/** @type {any} */ logProgress) => getGitTimestamps(locations, logProgress)
+  );
 
   if (!options.after) {
     return gitTimestamps;
@@ -38,24 +48,44 @@ async function queryPatternAge(options) {
     .toPairs()
     .filter(([timestampS]) => Number(timestampS) >= afterTimestampS)
     .fromPairs()
-    .value()
+    .value();
 }
 
 /**
  * @param {ReturnType<typeof getLocations>} locations 
+ * @param {Function} logProgress 
  */
-async function getGitTimestamps(locations) {
-  const timestamps = await Promise.all(
-    _.map(locations, (locationsForFile, filePath) => Promise.all(_.map(locationsForFile, async ({line, endLine}) => {
-      const {stdout: gitResults} = await execa('git', ['blame', filePath, '-L', `${line},${endLine}`, '--porcelain']);
+async function getGitTimestamps(locations, logProgress) {
+  const limit = pLimit(os.cpus().length - 1);
+  let countFilesBlamed = 0;
+  const timestampPromiseFns = _.map(locations, (locationsForFile, filePath) => {
+    const locationParams = _(locationsForFile)
+      .map(({line, endLine}) => ['-L', `${line},${endLine}`])
+      .flatten()
+      .value();
+    return limit(async () => {
+      const {stdout: gitResults} = await execa('git', ['blame', filePath, ...locationParams, '--porcelain']);
+
+      countFilesBlamed++;
+      const logInterval = 20;
+      if (!(countFilesBlamed % logInterval)) {
+        logProgress({
+          countComplete: countFilesBlamed, 
+          totalCount: _.size(locations), 
+          percentage: Math.floor(countFilesBlamed / _.size(locations) * 100)
+        })
+      }
+
       // TODO: To improve accuracy of results, emit a count of how often each commit appears in the blame, instead of
       // assuming that all commits occur equally often.
       return gitResults
         .split('\n')
         .filter(line => line.startsWith('author-time'))
         .map(line => line.split(' ')[1]);
-    })))
-  );
+    });
+  });
+
+  const timestamps = await Promise.all(timestampPromiseFns);
   return _(timestamps).flattenDeep().countBy().value();
 }
 

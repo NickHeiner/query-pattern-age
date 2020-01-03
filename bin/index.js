@@ -34,7 +34,7 @@ const {argv} = require('yargs')
   })
   .check(argv => {
     if (argv.format === 'list-after' && !argv.after) {
-      throw new Error('If --format is "list-after", then you must provide an --after date.')
+      throw new Error('If --format is "list-after", then you must provide an --after date.');
     }
     return true;
   });
