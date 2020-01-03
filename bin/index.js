@@ -33,6 +33,7 @@ async function main() {
   try {
     log.trace(argv);
     const timestamps = await queryPatternAge(_.pick(argv, 'paths', 'astSelector'));
+    // @ts-ignore type inference doesn't detect the type of format properly.
     format(timestamps, argv.format);
   } catch (e) {
     console.log(e);
@@ -53,13 +54,14 @@ function format(timestamps, format) {
 
   _(timestamps)
     .map((count, timestamp) => {
-      const date = moment(new Date(Number(timestamp) * 1000));
+      const msInSeconds = 1000;
+      const date = moment(new Date(Number(timestamp) * msInSeconds));
       return {date, count};
     })
     .sortBy('date')
     .forEach(({date, count}) => {
-      console.log(date.format('YYYY/MMM/DD'), _.repeat('█', count))
-    })
+      console.log(date.format('YYYY/MMM/DD'), _.repeat('█', count));
+    });
 }
 
 main();

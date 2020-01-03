@@ -1,7 +1,6 @@
 const resolveFrom = require('resolve-from');
 const dedent = require('dedent');
 const {promisify} = require('util');
-const log = require('nth-log');
 const _ = require('lodash');
 const globby = require('globby');
 const readFile = promisify(require('fs').readFile.bind(require('fs')));
@@ -23,7 +22,7 @@ async function queryPatternAge(options) {
 
   const eslintReport = await getEslintReports(cliEngine, linter, files, options.astSelector);
   const locations = getLocations(eslintReport);
-  return await getGitTimestamps(locations);
+  return getGitTimestamps(locations);
 }
 
 /**
@@ -38,9 +37,9 @@ async function getGitTimestamps(locations) {
       return gitResults
         .split('\n')
         .filter(line => line.startsWith('author-time'))
-        .map(line => line.split(' ')[1])
+        .map(line => line.split(' ')[1]);
     })))
-  )
+  );
   return _(timestamps).flattenDeep().countBy().value();
 }
 
@@ -56,7 +55,7 @@ function getLocations(eslintReport) {
       .filter('ruleId')
       .map(message => _.pick(message, ['line', 'endLine']))
       .value()
-  )
+  );
 }
 
 function getEslintPath() {
@@ -91,14 +90,13 @@ async function getEslintReports(cliEngine, linter, files, astSelector) {
       const config = cliEngine.getConfigForFile(filePath);
       config.rules = {
         'no-restricted-syntax': [2, astSelector]
-      }
+      };
       const fileContents = await readFile(filePath, 'utf8');
-      return [filePath, linter.verify(fileContents, config)]
+      return [filePath, linter.verify(fileContents, config)];
     })
     .value()
-  )
+  );
   return _.fromPairs(pairs);
 }
-
 
 module.exports = queryPatternAge;
