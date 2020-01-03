@@ -13,18 +13,19 @@ const {argv} = require('yargs')
       demandOption: true,
       description: 'globby-accepted patterns of the file paths to search'
     },
-    astPattern: {
+    astSelector: {
       alias: 'a',
       string: true,
-      description: 'An AST pattern to search for.'
+      demandOption: true,
+      description: 
+        'An AST selector to search for. See https://eslint.org/docs/developer-guide/selectors for more details.'
     }
   });
 
 async function main() {
   try {
     log.trace(argv);
-
-    await queryPatternAge(_.pick(argv, 'paths', 'astPattern'));
+    await queryPatternAge(_.pick(argv, 'paths', 'astSelector'));
   } catch (e) {
     console.log(e);
     log.error(e);

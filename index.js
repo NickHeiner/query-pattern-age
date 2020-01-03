@@ -1,22 +1,28 @@
 const resolveFrom = require('resolve-from');
-const path = require('path');
 const dedent = require('dedent');
-const loadJsonFile = require('load-json-file');
-const util = require('util');
-const findParentDir = util.promisify(require('find-parent-dir'));
-const {spawn} = require('child_process');
+const {promisify} = require('util');
 const log = require('nth-log');
 const _ = require('lodash');
+const globby = require('globby');
+const readFile = promisify(require('fs').readFile.bind(require('fs')));
 
 /**
  * @param {object} options 
- * @param {string[]} options.astPattern
- * @param {string[]} options.files
+ * @param {string} options.astSelector
+ * @param {string[]} options.paths
  */
 async function queryPatternAge(options) {
-  const eslintBin = await getEslintBinPath();
-  const eslintReport = await runEslint(eslintBin, options.files);
-  const violations = await getViolations(eslintReport, options.rules);
+  const files = _.flatten(await Promise.all(options.paths.map(path => globby(path))));
+  const eslintMainPath = getEslintPath();
+  
+  /** @type {import("eslint")} */
+  const {CLIEngine, Linter} = require(eslintMainPath);
+  const cliEngine = new CLIEngine({});
+  const linter = new Linter();
+
+  const eslintReport = await getEslintReports(cliEngine, linter, files, options.astSelector);
+
+  log.trace(eslintReport);
 }
 
 /**
@@ -40,58 +46,46 @@ function getViolations(eslintReport, rules) {
     .value();
 }
 
-async function getEslintBinPath(dirPath = process.cwd()) {
-  const eslintMainPath = resolveFrom(dirPath, 'eslint');
-  const eslintRoot = await findParentDir(eslintMainPath, 'package.json');
-  if (!eslintRoot) {
-    throw new Error(dedent`
+function getEslintPath() {
+  try {
+    return resolveFrom(process.cwd(), 'eslint');
+  } catch (e) {
+    const err = new Error(dedent`
       eslint-bankruptcy could not find an eslint instance to run. To resolve this:
 
       1. Run this command from a directory in which "require('eslint')" works.
       2. Pass an eslint instance to use.
       3. Pass a directory from which to resolve eslint.
     `);
+    // @ts-ignore I'm fine assigning to err.originalError even though it doesn't exist on the Error type.
+    err.originalError = e;
+    throw err;
   }
-  const packageJsonPath = path.join(eslintRoot, 'package.json');
-  /** @type {{bin: {eslint: string}}} */ 
-  const packageJson = await loadJsonFile(packageJsonPath);
-  return path.resolve(eslintRoot, packageJson.bin.eslint);
 }
 
 /**
  * 
- * @param {string} eslintBinPath 
+ * @param {import("eslint").CLIEngine} cliEngine 
+ * @param {import("eslint").Linter} linter 
  * @param {string[]} files 
+ * @param {string} astSelector 
+ * @return {Promise<{[filePath: string]: import("eslint").Linter.LintMessage[]}>}
  */
-function runEslint(eslintBinPath, files) {
-  log.debug({eslintBinPath, files}, 'Spawning eslint');
-
-  const childProc = spawn(eslintBinPath, [files.join(' '), '--format', 'json']);
-
-  let stdOut = '';
-  childProc.stdout.on('data', chunk => {
-    const chunkStr = chunk.toString();
-    log.debug(chunkStr);
-    stdOut += chunkStr;
-  });
-  let stdErr = '';
-  childProc.stderr.on('data', chunk => {
-    const chunkStr = chunk.toString();
-    log.debug(chunkStr);
-    stdErr += chunkStr;
-  });
-
-  return new Promise((resolve, reject) => {
-    childProc.on('close', code => {
-      if (!code || code === 1) {
-        const outputJson = JSON.parse(stdOut);
-        return resolve(outputJson);
+async function getEslintReports(cliEngine, linter, files, astSelector) {
+  const pairs = await Promise.all(_(files)
+    .reject(filePath => cliEngine.isPathIgnored(filePath))
+    .map(async filePath => {
+      const config = cliEngine.getConfigForFile(filePath);
+      config.rules = {
+        'no-restricted-syntax': [2, astSelector]
       }
-      const err = new Error('Eslint did not run successfully');
-      Object.assign(err, {stdOut, stdErr, eslintBinPath, files});
-      return reject(err);
-    });
-  });
+      const fileContents = await readFile(filePath, 'utf8');
+      return [filePath, linter.verify(fileContents, config)]
+    })
+    .value()
+  )
+  return _.fromPairs(pairs);
 }
+
 
 module.exports = queryPatternAge;
