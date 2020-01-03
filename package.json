@@ -22,10 +22,12 @@
   "dependencies": {
     "@types/node": "^13.1.2",
     "dedent": "^0.7.0",
+    "execa": "^4.0.0",
     "find-parent-dir": "^0.3.0",
     "globby": "^10.0.1",
     "load-json-file": "^6.2.0",
     "lodash": "^4.17.15",
+    "moment": "^2.24.0",
     "nth-log": "^1.0.0",
     "resolve-from": "^5.0.0",
     "yargs": "^15.1.0"

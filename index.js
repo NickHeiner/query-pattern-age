@@ -5,6 +5,7 @@ const log = require('nth-log');
 const _ = require('lodash');
 const globby = require('globby');
 const readFile = promisify(require('fs').readFile.bind(require('fs')));
+const execa = require('execa');
 
 /**
  * @param {object} options 
@@ -21,29 +22,41 @@ async function queryPatternAge(options) {
   const linter = new Linter();
 
   const eslintReport = await getEslintReports(cliEngine, linter, files, options.astSelector);
-
-  log.trace(eslintReport);
+  const locations = getLocations(eslintReport);
+  return await getGitTimestamps(locations);
 }
 
 /**
- * @param {Array<{filePath: string, messages: Array<{ruleId: string, line: number}>}>} eslintReport 
- * @param {string[]} rules
- * @return {{[filePath: string]: {[lineNumber: number]: string[]}}}}
+ * @param {ReturnType<typeof getLocations>} locations 
  */
-function getViolations(eslintReport, rules) {
-  return _(eslintReport)
-    .flatMapDeep(({filePath, messages}) => _.flatMap(messages, ({ruleId, line}) => ({filePath, ruleId, line})))
-    .groupBy('filePath')
-    .mapValues(entry => _(entry)
-      .filter(({ruleId}) => rules.includes(ruleId))
-      .groupBy('line')
-      .mapValues(violations => _.map(violations, 'ruleId'))
+async function getGitTimestamps(locations) {
+  const timestamps = await Promise.all(
+    _.map(locations, (locationsForFile, filePath) => Promise.all(_.map(locationsForFile, async ({line, endLine}) => {
+      const {stdout: gitResults} = await execa('git', ['blame', filePath, '-L', `${line},${endLine}`, '--porcelain']);
+      // TODO: To improve accuracy of results, emit a count of how often each commit appears in the blame, instead of
+      // assuming that all commits occur equally often.
+      return gitResults
+        .split('\n')
+        .filter(line => line.startsWith('author-time'))
+        .map(line => line.split(' ')[1])
+    })))
+  )
+  return _(timestamps).flattenDeep().countBy().value();
+}
+
+/**
+ * @param {{[filePath: string]: import("eslint").Linter.LintMessage[]}} eslintReport 
+ */
+function getLocations(eslintReport) {
+  return _.mapValues(
+    eslintReport, 
+    messages => _(messages)
+      // If the eslint config uses special preprocessors to handle files like .md files, then when we lint here,
+      // we'll get a parse error. In this case, ruleId will be null.
+      .filter('ruleId')
+      .map(message => _.pick(message, ['line', 'endLine']))
       .value()
-    )
-    .toPairs()
-    .filter(([, violations]) => Boolean(_.size(violations)))
-    .fromPairs()
-    .value();
+  )
 }
 
 function getEslintPath() {
