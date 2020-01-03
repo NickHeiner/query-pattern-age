@@ -5,10 +5,13 @@ const _ = require('lodash');
 const globby = require('globby');
 const readFile = promisify(require('fs').readFile.bind(require('fs')));
 const execa = require('execa');
+const moment = require('moment');
+const log = require('nth-log');
 
 /**
  * @param {object} options 
  * @param {string} options.astSelector
+ * @param {string} options.after
  * @param {string[]} options.paths
  */
 async function queryPatternAge(options) {
@@ -22,7 +25,20 @@ async function queryPatternAge(options) {
 
   const eslintReport = await getEslintReports(cliEngine, linter, files, options.astSelector);
   const locations = getLocations(eslintReport);
-  return getGitTimestamps(locations);
+  log.trace('Getting git timestamps');
+  const gitTimestamps = await getGitTimestamps(locations);
+
+  if (!options.after) {
+    return gitTimestamps;
+  }
+
+  const afterTimestampS = moment(options.after, 'YYYY-M-D').unix();
+
+  return _(gitTimestamps)
+    .toPairs()
+    .filter(([timestampS]) => Number(timestampS) >= afterTimestampS)
+    .fromPairs()
+    .value()
 }
 
 /**
