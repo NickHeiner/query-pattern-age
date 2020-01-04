@@ -45,9 +45,8 @@ async function queryPatternAge(options) {
   const afterTimestampS = moment(options.after, 'YYYY-M-D').unix();
 
   return _(gitTimestamps)
-    .toPairs()
-    .filter(([timestampS]) => Number(timestampS) >= afterTimestampS)
-    .fromPairs()
+    .filter(({timestampS}) => timestampS >= afterTimestampS)
+    .sortBy('timestampS')
     .value();
 }
 
@@ -76,17 +75,56 @@ async function getGitTimestamps(locations, logProgress) {
         })
       }
 
+      const gitHashLength = 40;
+
       // TODO: To improve accuracy of results, emit a count of how often each commit appears in the blame, instead of
       // assuming that all commits occur equally often.
       return gitResults
         .split('\n')
-        .filter(line => line.startsWith('author-time'))
-        .map(line => line.split(' ')[1]);
+        .map(line => {
+          // I don't know which assumptions about the git output are safe to make.
+
+          const firstSpaceIndex = line.indexOf(' ');
+          const firstEntry = line.substring(0, firstSpaceIndex);
+          if (firstEntry.length === gitHashLength) {
+            return {
+              label: 'hash',
+              value: firstEntry
+            }
+          }
+          return {
+            label: firstEntry,
+            value: line.substring(firstSpaceIndex + 1)
+          }
+        })
+        .reduce((acc, line, index, lines) => {
+          if (line.label !== 'hash' || _.find(acc, {hash: line.value})) {
+            return acc;
+          }
+          
+          const linesAfterThisOne = lines.slice(index);
+
+          return [...acc, {
+            hash: line.value,
+            timestampS: _.find(linesAfterThisOne, {label: 'author-time'}).value,
+            author: _.find(linesAfterThisOne, {label: 'author'}).value,
+          }]
+        }, []);
     });
   });
 
-  const timestamps = await Promise.all(timestampPromiseFns);
-  return _(timestamps).flattenDeep().countBy().value();
+  const commits = await Promise.all(timestampPromiseFns);
+
+  log.debug({commits});
+
+  return _(commits)
+    .flattenDeep()
+    .map((commit, index, commits) => ({
+      ...commit,
+      count: _.filter(commits, _.pick(commit, 'hash')).length
+    }))
+    .uniqBy('hash')
+    .value();
 }
 
 /**
