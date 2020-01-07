@@ -10,6 +10,9 @@ const log = require('nth-log');
 const pLimit = require('p-limit');
 const os = require('os');
 
+/** @typedef {{hash: string, filePath: string, timestampS: number, author: string}[]} Commits */
+
+
 /**
  * @param {object} options 
  * @param {string} options.astSelector
@@ -50,7 +53,6 @@ async function queryPatternAge(options) {
     .value();
 }
 
-/** @typedef {{hash: string, filePath: string, timestampS: number, author: string}[]} Commits */
 
 /**
  * @param {ReturnType<typeof getLocations>} locations 
