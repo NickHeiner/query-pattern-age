@@ -5,6 +5,7 @@ const log = require('nth-log');
 const _ = require('lodash');
 const moment = require('moment');
 const CliTable = require('cli-table3');
+const terminalLink = require('terminal-link');
 
 const {argv} = require('yargs')
   .options({
@@ -28,6 +29,12 @@ const {argv} = require('yargs')
       choices: ['raw', 'pretty', 'list-after'],
       default: 'pretty'
     },
+    hashUrlFormat: {
+      alias: 'h',
+      string: true,
+      description: 'A URL format to use for linking hashes to their commit web pages in terminal output. ' +
+        'Pass a URL with "%s" in place of the hash. For instance, "https://github.com/org/repo/commit/%s"'
+    },
     after: {
       string: true,
       description: 'A date (formated YYYY-M-D, like "2017-1-15") after which you want to see commits.'
@@ -45,7 +52,7 @@ async function main() {
     log.trace(argv);
     const timestamps = await queryPatternAge(_.pick(argv, 'paths', 'astSelector', 'after'));
     // @ts-ignore type inference doesn't detect the type of format properly.
-    format(timestamps, argv.format);
+    format(timestamps, argv.format, argv.hashUrlFormat);
   } catch (e) {
     console.log(e);
     log.error(e);
@@ -73,8 +80,9 @@ function formatDate(date) {
 /**
  * @param {{[timestamp: number]: number}} commits 
  * @param {'raw' | 'pretty' | 'list-after'} format
+ * @param {string} hashUrlFormat
  */
-function format(commits, format) {
+function format(commits, format, hashUrlFormat) {
   if (format === 'raw') {
     console.log(JSON.stringify(commits));
     return;
@@ -85,7 +93,13 @@ function format(commits, format) {
       head: ['Date', 'Committer', 'Hash']
     });
 
-    commits.forEach(({hash, timestampS, author}) => table.push([formatDate(dateOfTimestamp(timestampS)), author, hash]));
+    commits.forEach(({hash, timestampS, author}) => table.push([
+      formatDate(dateOfTimestamp(timestampS)), 
+      author, 
+      // This breaks the table format, because the layout manager doesn't know how to interpret the non-rendered
+      // characters in a link. I don't think it's worth fixing now.
+      hashUrlFormat ? terminalLink(hash, hashUrlFormat.replace('%s', hash)) :  hash
+    ]));
     console.log(table.toString());
     return;
   }

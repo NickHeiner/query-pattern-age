@@ -32,6 +32,7 @@
     "nth-log": "^1.0.0",
     "p-limit": "^2.2.2",
     "resolve-from": "^5.0.0",
+    "terminal-link": "^2.1.1",
     "yargs": "^15.1.0"
   },
   "scripts": {
