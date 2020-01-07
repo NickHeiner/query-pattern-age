@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@types/node": "^13.1.2",
+    "cli-table3": "^0.5.1",
     "dedent": "^0.7.0",
     "execa": "^4.0.0",
     "find-parent-dir": "^0.3.0",

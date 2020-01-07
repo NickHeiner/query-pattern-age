@@ -4,6 +4,7 @@ const queryPatternAge = require('..');
 const log = require('nth-log');
 const _ = require('lodash');
 const moment = require('moment');
+const CliTable = require('cli-table3');
 
 const {argv} = require('yargs')
   .options({
@@ -53,24 +54,50 @@ async function main() {
 }
 
 /**
- * @param {{[timestamp: number]: number}} timestamps 
- * @param {'raw' | 'pretty'} format
+ * 
+ * @param {number} timestampS 
  */
-function format(timestamps, format) {
+function dateOfTimestamp(timestampS) {
+  const msInSeconds = 1000;
+  return moment(new Date(Number(timestampS) * msInSeconds))
+}
+
+/**
+ * 
+ * @param {import("moment").Moment} date 
+ */
+function formatDate(date) {
+  return date.format('YYYY/MMM/DD')
+}
+
+/**
+ * @param {{[timestamp: number]: number}} commits 
+ * @param {'raw' | 'pretty' | 'list-after'} format
+ */
+function format(commits, format) {
   if (format === 'raw') {
-    console.log(JSON.stringify(timestamps));
+    console.log(JSON.stringify(commits));
     return;
   }
 
-  _(timestamps)
+  if (format === 'list-after') {
+    const table = new CliTable({
+      head: ['Date', 'Committer', 'Hash']
+    });
+
+    commits.forEach(({hash, timestampS, author}) => table.push([formatDate(dateOfTimestamp(timestampS)), author, hash]));
+    console.log(table.toString());
+    return;
+  }
+
+  _(commits)
     .map((count, timestamp) => {
-      const msInSeconds = 1000;
-      const date = moment(new Date(Number(timestamp) * msInSeconds));
+      const date = dateOfTimestamp(timestamp);
       return {date, count};
     })
     .sortBy('date')
     .forEach(({date, count}) => {
-      console.log(date.format('YYYY/MMM/DD'), _.repeat('█', count));
+      console.log(formatDate(date), _.repeat('█', count));
     });
 }
 
