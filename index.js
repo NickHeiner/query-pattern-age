@@ -64,12 +64,18 @@ async function getGitTimestamps(locations, logProgress) {
   
   const timestampPromiseFns = /** @type {Promise<Commits>[]} */ (/** @type {unknown} */ (
     _.map(locations, (locationsForFile, filePath) => {
+      // if (filePath === 'packages/darwin/src/bundles/playmode/__tests__/mocks/videosStringsCommon.js') {
+      //   log.warn({locationsForFile});
+      // }
+
       const locationParams = _(locationsForFile)
         .map(({line, endLine}) => ['-L', `${line},${endLine}`])
         .flatten()
         .value();
       return limit(async () => {
-        const {stdout: gitResults} = await execa('git', ['blame', filePath, ...locationParams, '--porcelain']);
+        const commandArgs = ['blame', filePath, ...locationParams, '--porcelain'];
+        const command = 'git';
+        const {stdout: gitResults} = await execa(command, commandArgs);
 
         countFilesBlamed++;
         const logInterval = 20;
@@ -77,6 +83,8 @@ async function getGitTimestamps(locations, logProgress) {
           logProgress({
             countComplete: countFilesBlamed, 
             totalCount: _.size(locations), 
+            // It's obvious what 100 represents in this context.
+            // eslint-disable-next-line no-magic-numbers
             percentage: Math.floor(countFilesBlamed / _.size(locations) * 100)
           });
         }
@@ -117,7 +125,7 @@ async function getGitTimestamps(locations, logProgress) {
              * @param {string} label 
              */
             function demandLine(label) {
-              const foundLine = _.find(linesAfterThisOne, {label})
+              const foundLine = _.find(linesAfterThisOne, {label});
               if (!foundLine) {
                 throw new Error('Bug in this tool: did not find expected output in git blame.');
               }
@@ -127,6 +135,7 @@ async function getGitTimestamps(locations, logProgress) {
             return [...acc, {
               hash: line.value,
               filePath,
+              command: `${command} ${commandArgs.join(' ')}`,
               timestampS: Number(demandLine('author-time').value),
               author: demandLine('author').value
             }];
@@ -142,19 +151,35 @@ async function getGitTimestamps(locations, logProgress) {
   return _(commits)
     .flattenDeep()
     .groupBy('hash')
-    .mapValues((commits) => ({
+    .mapValues(commits => ({
       count: commits.length,
       files: _.map(commits, 'filePath'),
-      ..._.omit(commits[0], 'filePath')
+      commands: _.map(commits, 'command'),
+      ..._.omit(commits[0], 'filePath', 'command')
     }))
     .value();
+}
+
+/**
+ * 
+ * @template V
+ * @param {Record<string, V>} object 
+ * @param {(v: V, k: string) => boolean} predicate 
+ */
+function filterValues(object, predicate) {
+  return _.reduce(object, (acc, val, key) => {
+    if (predicate(val, key)) {
+      return {...acc, [key]: val};
+    }
+    return acc;
+  }, {});
 }
 
 /**
  * @param {{[filePath: string]: import("eslint").Linter.LintMessage[]}} eslintReport 
  */
 function getLocations(eslintReport) {
-  return _.mapValues(
+  return filterValues(_.mapValues(
     eslintReport, 
     messages => _(messages)
       // If the eslint config uses special preprocessors to handle files like .md files, then when we lint here,
@@ -162,7 +187,7 @@ function getLocations(eslintReport) {
       .filter('ruleId')
       .map(message => _.pick(message, ['line', 'endLine']))
       .value()
-  );
+  ), violations => Boolean(violations.length));
 }
 
 function getEslintPath() {
