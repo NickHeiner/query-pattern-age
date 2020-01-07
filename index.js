@@ -35,7 +35,7 @@ async function queryPatternAge(options) {
   const locations = getLocations(eslintReport);
   const gitTimestamps = await log.logStep(
     {step: 'getting git timestamps', level: 'debug', countFiles: _.size(files)},
-    (/** @type {any} */ logProgress) => getGitTimestamps(locations, logProgress)
+    logProgress => getGitTimestamps(locations, logProgress)
   );
 
   if (!options.after) {
@@ -50,68 +50,90 @@ async function queryPatternAge(options) {
     .value();
 }
 
+/** @typedef {{hash: string, filePath: string, timestampS: number, author: string}[]} Commits */
+
 /**
  * @param {ReturnType<typeof getLocations>} locations 
  * @param {Function} logProgress 
  */
 async function getGitTimestamps(locations, logProgress) {
+  // The type signature for pLimit is wrong.
+  // @ts-ignore
   const limit = pLimit(os.cpus().length - 1);
   let countFilesBlamed = 0;
-  const timestampPromiseFns = _.map(locations, (locationsForFile, filePath) => {
-    const locationParams = _(locationsForFile)
-      .map(({line, endLine}) => ['-L', `${line},${endLine}`])
-      .flatten()
-      .value();
-    return limit(async () => {
-      const {stdout: gitResults} = await execa('git', ['blame', filePath, ...locationParams, '--porcelain']);
+  
+  const timestampPromiseFns = /** @type {Promise<Commits>[]} */ (/** @type {unknown} */ (
+    _.map(locations, (locationsForFile, filePath) => {
+      const locationParams = _(locationsForFile)
+        .map(({line, endLine}) => ['-L', `${line},${endLine}`])
+        .flatten()
+        .value();
+      return limit(async () => {
+        const {stdout: gitResults} = await execa('git', ['blame', filePath, ...locationParams, '--porcelain']);
 
-      countFilesBlamed++;
-      const logInterval = 20;
-      if (!(countFilesBlamed % logInterval)) {
-        logProgress({
-          countComplete: countFilesBlamed, 
-          totalCount: _.size(locations), 
-          percentage: Math.floor(countFilesBlamed / _.size(locations) * 100)
-        })
-      }
+        countFilesBlamed++;
+        const logInterval = 20;
+        if (!(countFilesBlamed % logInterval)) {
+          logProgress({
+            countComplete: countFilesBlamed, 
+            totalCount: _.size(locations), 
+            percentage: Math.floor(countFilesBlamed / _.size(locations) * 100)
+          });
+        }
 
-      const gitHashLength = 40;
+        const gitHashLength = 40;
 
-      // TODO: To improve accuracy of results, emit a count of how often each commit appears in the blame, instead of
-      // assuming that all commits occur equally often.
-      return gitResults
-        .split('\n')
-        .map(line => {
-          // I don't know which assumptions about the git output are safe to make.
+        // I don't know how to declare this inline.
+        /** @type {Commits} */
+        const initialReducerValue = [];
 
-          const firstSpaceIndex = line.indexOf(' ');
-          const firstEntry = line.substring(0, firstSpaceIndex);
-          if (firstEntry.length === gitHashLength) {
-            return {
-              label: 'hash',
-              value: firstEntry
+        // TODO: To improve accuracy of results, emit a count of how often each commit appears in the blame, instead of
+        // assuming that all commits occur equally often.
+        return gitResults
+          .split('\n')
+          .map(line => {
+            // I don't know which assumptions about the git output are safe to make.
+
+            const firstSpaceIndex = line.indexOf(' ');
+            const firstEntry = line.substring(0, firstSpaceIndex);
+            if (firstEntry.length === gitHashLength) {
+              return {
+                label: 'hash',
+                value: firstEntry
+              };
             }
-          }
-          return {
-            label: firstEntry,
-            value: line.substring(firstSpaceIndex + 1)
-          }
-        })
-        .reduce((acc, line, index, lines) => {
-          if (line.label !== 'hash' || _.find(acc, {hash: line.value})) {
-            return acc;
-          }
-          
-          const linesAfterThisOne = lines.slice(index);
+            return {
+              label: firstEntry,
+              value: line.substring(firstSpaceIndex + 1)
+            };
+          }).reduce((acc, line, index, lines) => {
+            if (line.label !== 'hash' || _.find(acc, {hash: line.value})) {
+              return acc;
+            }
+            
+            const linesAfterThisOne = lines.slice(index);
 
-          return [...acc, {
-            hash: line.value,
-            timestampS: _.find(linesAfterThisOne, {label: 'author-time'}).value,
-            author: _.find(linesAfterThisOne, {label: 'author'}).value,
-          }]
-        }, []);
-    });
-  });
+            /**
+             * @param {string} label 
+             */
+            function demandLine(label) {
+              const foundLine = _.find(linesAfterThisOne, {label})
+              if (!foundLine) {
+                throw new Error('Bug in this tool: did not find expected output in git blame.');
+              }
+              return foundLine;
+            }
+
+            return [...acc, {
+              hash: line.value,
+              filePath,
+              timestampS: Number(demandLine('author-time').value),
+              author: demandLine('author').value
+            }];
+          }, initialReducerValue);
+      });
+    })
+  ));
 
   const commits = await Promise.all(timestampPromiseFns);
 
@@ -119,11 +141,12 @@ async function getGitTimestamps(locations, logProgress) {
 
   return _(commits)
     .flattenDeep()
-    .map((commit, index, commits) => ({
-      ...commit,
-      count: _.filter(commits, _.pick(commit, 'hash')).length
+    .groupBy('hash')
+    .mapValues((commits) => ({
+      count: commits.length,
+      files: _.map(commits, 'filePath'),
+      ..._.omit(commits[0], 'filePath')
     }))
-    .uniqBy('hash')
     .value();
 }
 

@@ -33,7 +33,8 @@ const {argv} = require('yargs')
       alias: 'h',
       string: true,
       description: 'A URL format to use for linking hashes to their commit web pages in terminal output. ' +
-        'Pass a URL with "%s" in place of the hash. For instance, "https://github.com/org/repo/commit/%s"'
+        'Pass a URL with "%s" in place of the hash. For instance, "https://github.com/org/repo/commit/%s". ' +
+        'Unfortunately, this makes the output of --format list-after look bad.'
     },
     after: {
       string: true,
@@ -66,7 +67,7 @@ async function main() {
  */
 function dateOfTimestamp(timestampS) {
   const msInSeconds = 1000;
-  return moment(new Date(Number(timestampS) * msInSeconds))
+  return moment(new Date(Number(timestampS) * msInSeconds));
 }
 
 /**
@@ -74,7 +75,7 @@ function dateOfTimestamp(timestampS) {
  * @param {import("moment").Moment} date 
  */
 function formatDate(date) {
-  return date.format('YYYY/MMM/DD')
+  return date.format('YYYY/MMM/DD');
 }
 
 /**
@@ -90,15 +91,17 @@ function format(commits, format, hashUrlFormat) {
 
   if (format === 'list-after') {
     const table = new CliTable({
-      head: ['Date', 'Committer', 'Hash']
+      head: ['Date', 'Committer', 'Occurrence Count', 'Files', 'Hash']
     });
 
-    commits.forEach(({hash, timestampS, author}) => table.push([
+    commits.forEach(({hash, timestampS, author, count, files}) => table.push([
       formatDate(dateOfTimestamp(timestampS)), 
       author, 
       // This breaks the table format, because the layout manager doesn't know how to interpret the non-rendered
       // characters in a link. I don't think it's worth fixing now.
-      hashUrlFormat ? terminalLink(hash, hashUrlFormat.replace('%s', hash)) :  hash
+      count,
+      files.join('\n'),
+      hashUrlFormat ? terminalLink(hash, hashUrlFormat.replace('%s', hash)) : hash
     ]));
     console.log(table.toString());
     return;
