@@ -26,7 +26,7 @@ const {argv} = require('yargs')
     format: {
       alias: 'f',
       string: true, 
-      choices: ['raw', 'pretty', 'list-after'],
+      choices: ['raw', 'list-after'],
       default: 'pretty'
     },
     hashUrlFormat: {
@@ -79,7 +79,7 @@ function formatDate(date) {
 }
 
 /**
- * @param {{[timestamp: number]: number}} commits 
+ * @param {import("../types").Commits} commits 
  * @param {'raw' | 'pretty' | 'list-after'} format
  * @param {string} hashUrlFormat
  */
@@ -94,6 +94,8 @@ function format(commits, format, hashUrlFormat) {
       head: ['Date', 'Committer', 'Occurrence Count', 'Files', 'Hash']
     });
 
+    // CliTable types are wrong.
+    // @ts-ignore
     commits.forEach(({hash, timestampS, author, count, files}) => table.push([
       formatDate(dateOfTimestamp(timestampS)), 
       author, 
@@ -104,18 +106,7 @@ function format(commits, format, hashUrlFormat) {
       hashUrlFormat ? terminalLink(hash, hashUrlFormat.replace('%s', hash)) : hash
     ]));
     console.log(table.toString());
-    return;
   }
-
-  _(commits)
-    .map((count, timestamp) => {
-      const date = dateOfTimestamp(timestamp);
-      return {date, count};
-    })
-    .sortBy('date')
-    .forEach(({date, count}) => {
-      console.log(formatDate(date), _.repeat('█', count));
-    });
 }
 
 main();

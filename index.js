@@ -10,14 +10,12 @@ const log = require('nth-log');
 const pLimit = require('p-limit');
 const os = require('os');
 
-/** @typedef {{hash: string, filePath: string, timestampS: number, author: string}[]} Commits */
-
-
 /**
  * @param {object} options 
  * @param {string} options.astSelector
- * @param {string} options.after
  * @param {string[]} options.paths
+ * @param {string | undefined} options.after
+ * @return {Promise<import("./types").Commits>}
  */
 async function queryPatternAge(options) {
   const files = await log.logStep(
@@ -38,7 +36,7 @@ async function queryPatternAge(options) {
   const locations = getLocations(eslintReport);
   const gitTimestamps = await log.logStep(
     {step: 'getting git timestamps', level: 'debug', countFiles: _.size(files)},
-    logProgress => getGitTimestamps(locations, logProgress)
+    (/** @type {any} */ logProgress) => getGitTimestamps(locations, logProgress)
   );
 
   if (!options.after) {
@@ -53,7 +51,6 @@ async function queryPatternAge(options) {
     .value();
 }
 
-
 /**
  * @param {ReturnType<typeof getLocations>} locations 
  * @param {Function} logProgress 
@@ -64,7 +61,7 @@ async function getGitTimestamps(locations, logProgress) {
   const limit = pLimit(os.cpus().length - 1);
   let countFilesBlamed = 0;
   
-  const timestampPromiseFns = /** @type {Promise<Commits>[]} */ (/** @type {unknown} */ (
+  const timestampPromiseFns = /** @type {Promise<import("./types").Commits>[]} */ (/** @type {unknown} */ (
     _.map(locations, (locationsForFile, filePath) => {
       // if (filePath === 'packages/darwin/src/bundles/playmode/__tests__/mocks/videosStringsCommon.js') {
       //   log.warn({locationsForFile});
@@ -94,7 +91,7 @@ async function getGitTimestamps(locations, logProgress) {
         const gitHashLength = 40;
 
         // I don't know how to declare this inline.
-        /** @type {Commits} */
+        /** @type {Omit<import("./types").Commit, 'count' | 'files'>[]} */
         const initialReducerValue = [];
 
         // TODO: To improve accuracy of results, emit a count of how often each commit appears in the blame, instead of
