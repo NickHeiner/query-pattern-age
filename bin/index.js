@@ -73,7 +73,7 @@ function formatDate(date) {
 }
 
 /**
- * @param {import("../types").Commits} commits 
+ * @param {import("../types").Commit[]} commits 
  * @param {'raw' | 'pretty' | 'pretty'} format
  * @param {string} hashUrlFormat
  */

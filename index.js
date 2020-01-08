@@ -15,7 +15,7 @@ const os = require('os');
  * @param {string} options.astSelector
  * @param {string[]} options.paths
  * @param {string | undefined} options.after
- * @return {Promise<import("./types").Commits>}
+ * @return {Promise<import("./types").Commit[]>}
  */
 async function queryPatternAge(options) {
   const files = await log.logStep(
@@ -34,13 +34,15 @@ async function queryPatternAge(options) {
     () => getEslintReports(cliEngine, linter, files, options.astSelector)
   );
   const locations = getLocations(eslintReport);
-  const gitCommits = await log.logStep(
+  const gitCommits = /** @type {import("./types").Commit[]} */ (await log.logStep(
     {step: 'getting git timestamps', level: 'debug', countFiles: _.size(files)},
     (/** @type {any} */ logProgress) => getGitCommits(locations, logProgress)
-  );
+  ));
+
+  const sortedGitCommits = _.sortBy(gitCommits, 'timestampS');
 
   if (!options.after) {
-    return gitCommits;
+    return sortedGitCommits;
   }
 
   const afterTimestampS = moment(options.after, 'YYYY-M-D').unix();
@@ -61,7 +63,7 @@ async function getGitCommits(locations, logProgress) {
   const limit = pLimit(os.cpus().length - 1);
   let countFilesBlamed = 0;
   
-  const timestampPromiseFns = /** @type {Promise<import("./types").Commits>[]} */ (/** @type {unknown} */ (
+  const timestampPromiseFns = /** @type {Promise<import("./types").Commit>[]} */ (/** @type {unknown} */ (
     _.map(locations, (locationsForFile, filePath) => {
       // if (filePath === 'packages/darwin/src/bundles/playmode/__tests__/mocks/videosStringsCommon.js') {
       //   log.warn({locationsForFile});

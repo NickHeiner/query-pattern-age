@@ -6,4 +6,3 @@ export type Commit = {
   count: number;
   files: string[];
 };
-export type Commits = Commits[] 
