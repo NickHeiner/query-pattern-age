@@ -26,7 +26,7 @@ const {argv} = require('yargs')
     format: {
       alias: 'f',
       string: true, 
-      choices: ['raw', 'list-after'],
+      choices: ['raw', 'pretty'],
       default: 'pretty'
     },
     hashUrlFormat: {
@@ -34,26 +34,20 @@ const {argv} = require('yargs')
       string: true,
       description: 'A URL format to use for linking hashes to their commit web pages in terminal output. ' +
         'Pass a URL with "%s" in place of the hash. For instance, "https://github.com/org/repo/commit/%s". ' +
-        'Unfortunately, this makes the output of --format list-after look bad.'
+        'Unfortunately, this makes the output of --format pretty look bad.'
     },
     after: {
       string: true,
       description: 'A date (formated YYYY-M-D, like "2017-1-15") after which you want to see commits.'
     }
-  })
-  .check(argv => {
-    if (argv.format === 'list-after' && !argv.after) {
-      throw new Error('If --format is "list-after", then you must provide an --after date.');
-    }
-    return true;
   });
 
 async function main() {
   try {
     log.trace(argv);
-    const timestamps = await queryPatternAge(_.pick(argv, 'paths', 'astSelector', 'after'));
+    const commits = await queryPatternAge(_.pick(argv, 'paths', 'astSelector', 'after'));
     // @ts-ignore type inference doesn't detect the type of format properly.
-    format(timestamps, argv.format, argv.hashUrlFormat);
+    format(commits, argv.format, argv.hashUrlFormat);
   } catch (e) {
     console.log(e);
     log.error(e);
@@ -80,7 +74,7 @@ function formatDate(date) {
 
 /**
  * @param {import("../types").Commits} commits 
- * @param {'raw' | 'pretty' | 'list-after'} format
+ * @param {'raw' | 'pretty' | 'pretty'} format
  * @param {string} hashUrlFormat
  */
 function format(commits, format, hashUrlFormat) {
@@ -89,7 +83,7 @@ function format(commits, format, hashUrlFormat) {
     return;
   }
 
-  if (format === 'list-after') {
+  if (format === 'pretty') {
     const table = new CliTable({
       head: ['Date', 'Committer', 'Occurrence Count', 'Files', 'Hash']
     });

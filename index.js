@@ -34,18 +34,18 @@ async function queryPatternAge(options) {
     () => getEslintReports(cliEngine, linter, files, options.astSelector)
   );
   const locations = getLocations(eslintReport);
-  const gitTimestamps = await log.logStep(
+  const gitCommits = await log.logStep(
     {step: 'getting git timestamps', level: 'debug', countFiles: _.size(files)},
-    (/** @type {any} */ logProgress) => getGitTimestamps(locations, logProgress)
+    (/** @type {any} */ logProgress) => getGitCommits(locations, logProgress)
   );
 
   if (!options.after) {
-    return gitTimestamps;
+    return gitCommits;
   }
 
   const afterTimestampS = moment(options.after, 'YYYY-M-D').unix();
 
-  return _(gitTimestamps)
+  return _(gitCommits)
     .filter(({timestampS}) => timestampS >= afterTimestampS)
     .sortBy('timestampS')
     .value();
@@ -55,7 +55,7 @@ async function queryPatternAge(options) {
  * @param {ReturnType<typeof getLocations>} locations 
  * @param {Function} logProgress 
  */
-async function getGitTimestamps(locations, logProgress) {
+async function getGitCommits(locations, logProgress) {
   // The type signature for pLimit is wrong.
   // @ts-ignore
   const limit = pLimit(os.cpus().length - 1);
