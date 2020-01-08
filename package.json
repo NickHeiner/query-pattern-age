@@ -9,6 +9,7 @@
   "bin": {
     "query-pattern-age": "./bin/index.js"
   },
+  "keywords": ["ast", "command-line-tool", "cli", "utility", "eslint"],
   "devDependencies": {
     "@types/dedent": "^0.7.0",
     "@types/eslint": "^6.1.3",
