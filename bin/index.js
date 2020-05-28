@@ -49,8 +49,8 @@ async function main() {
     // @ts-ignore type inference doesn't detect the type of format properly.
     format(commits, argv.format, argv.hashUrlFormat);
   } catch (e) {
+    // Just stringifying the error may omit some fields we care about.
     console.log(e);
-    log.error(e);
     process.exit(1);
   }
 }

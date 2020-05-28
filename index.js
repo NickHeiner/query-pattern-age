@@ -19,8 +19,8 @@ const os = require('os');
  */
 async function queryPatternAge(options) {
   const files = await log.logStep(
-    {step: 'finding files via globby', level: 'debug'},
-    async () => _.flatten(await Promise.all(options.paths.map(path => globby(path))))
+    {step: 'finding files via globby', level: 'debug', ..._.pick(options, 'paths')},
+    () => globby(options.paths)
   );
   const eslintMainPath = getEslintPath();
   
@@ -29,8 +29,14 @@ async function queryPatternAge(options) {
   const cliEngine = new CLIEngine({});
   const linter = new Linter();
 
+  const sampleFileCount = 10;
   const eslintReport = await log.logStep(
-    {step: 'running ESLint on files', level: 'debug', countFiles: files.length}, 
+    {
+      step: 'running ESLint on files', 
+      level: 'debug', countFiles: files.length, 
+      ..._.pick(options, 'astSelector'),
+      sampleFiles: _.take(files, sampleFileCount)
+    }, 
     () => getEslintReports(cliEngine, linter, files, options.astSelector)
   );
   const locations = getLocations(eslintReport);
@@ -182,12 +188,7 @@ function filterValues(object, predicate) {
 function getLocations(eslintReport) {
   return filterValues(_.mapValues(
     eslintReport, 
-    messages => _(messages)
-      // If the eslint config uses special preprocessors to handle files like .md files, then when we lint here,
-      // we'll get a parse error. In this case, ruleId will be null.
-      .filter('ruleId')
-      .map(message => _.pick(message, ['line', 'endLine']))
-      .value()
+    messages => _.map(messages, message => _.pick(message, ['line', 'endLine']))
   ), violations => Boolean(violations.length));
 }
 
@@ -224,8 +225,23 @@ async function getEslintReports(cliEngine, linter, files, astSelector) {
       config.rules = {
         'no-restricted-syntax': [2, astSelector]
       };
+      log.trace({filePath}, 'Linting');
       const fileContents = await readFile(filePath, 'utf8');
-      return [filePath, linter.verify(fileContents, config)];
+      const lintReport = linter.verify(fileContents, config);
+
+      // If the eslint config uses special preprocessors to handle files like .md files, then when we lint here,
+      // we'll get a parse error. In this case, ruleId will be null.
+      const parseError = _.find(lintReport, {ruleId: null});
+      if (parseError) {
+        throw new Error(dedent`File '${filePath}' could not be parsed. 
+          If you meant to ignore this file, update your 'paths' param to omit it. 
+          If you want it to be parsed, then resolve the error that ESLint generated:
+          
+          ${parseError.message}
+        `);
+      }
+        
+      return [filePath, lintReport];
     })
     .value()
   );
