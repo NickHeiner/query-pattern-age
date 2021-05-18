@@ -221,19 +221,28 @@ async function getEslintReports(cliEngine, Linter, files, astSelector) {
   const pairs = await Promise.all(_(files)
     .reject(filePath => cliEngine.isPathIgnored(filePath))
     .map(async filePath => {
+      const linter = new Linter();
+
       const config = cliEngine.getConfigForFile(filePath);
       config.rules = {
         'no-restricted-syntax': [2, astSelector]
       };
-      log.trace({filePath, config}, 'Linting');
-      const fileContents = await readFile(filePath, 'utf8');
-      const linter = new Linter();
 
       // If the config specifies a parser, like for @typescript-eslint, we need to manually register it.
       if (config.parser) {
         // https://eslint.org/docs/developer-guide/nodejs-api#linterdefineparser
         linter.defineParser(config.parser, require(config.parser));
       }
+
+      // Normally, this is a good setting. However, given that we set rules to be solely no-restricted-syntax, we may
+      // see disable directives that are now unused.
+      // 
+      // @ts-expect-error This type is missing, but should be there.
+      config.reportUnusedDisableDirectives = false;
+
+      log.trace({filePath, config}, 'Linting');
+      const fileContents = await readFile(filePath, 'utf8');
+
 
       const lintReport = linter.verify(fileContents, config);
 
