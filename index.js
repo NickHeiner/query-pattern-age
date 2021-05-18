@@ -9,7 +9,6 @@ const moment = require('moment');
 const log = require('nth-log');
 const pLimit = require('p-limit');
 const os = require('os');
-const { Linter } = require('eslint');
 
 /**
  * @param {object} options 
@@ -242,7 +241,6 @@ async function getEslintReports(cliEngine, Linter, files, astSelector) {
 
       log.trace({filePath, config}, 'Linting');
       const fileContents = await readFile(filePath, 'utf8');
-
 
       const lintReport = linter.verify(fileContents, config);
 
