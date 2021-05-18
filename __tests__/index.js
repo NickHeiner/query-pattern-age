@@ -19,7 +19,7 @@ const baseArgs = [
 const execTest = (args, opts = {}) => execa(binPath, args, {
   cwd: __dirname,
   ...opts
-})
+});
 
 describe('query-pattern-age', () => {
   it('raw', async () => {
