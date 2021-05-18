@@ -1,0 +1,67 @@
+{
+  "name": "query-pattern-age",
+  "version": "1.0.0",
+  "description": "Provide an AST pattern, and see details about when that pattern was introduced to your codebase",
+  "main": "index.js",
+  "repository": "git@github.com:NickHeiner/query-pattern-age.git",
+  "author": "Nick Heiner <nth23@cornell.edu>",
+  "license": "MIT",
+  "bin": {
+    "query-pattern-age": "./bin/index.js"
+  },
+  "keywords": ["ast", "command-line-tool", "cli", "utility", "eslint"],
+  "devDependencies": {
+    "@types/dedent": "^0.7.0",
+    "@types/eslint": "^6.1.3",
+    "@types/find-parent-dir": "^0.3.0",
+    "@types/jest": "^24.0.25",
+    "@types/lodash": "^4.14.149",
+    "@types/yargs": "^13.0.4",
+    "eslint": "^6.8.0",
+    "eslint-config-nth": "^2.0.1",
+    "eslint-plugin-jest": "^23.3.0",
+    "jest": "^24.9.0",
+    "typescript": "^3.7.4"
+  },
+  "dependencies": {
+    "@types/node": "^13.1.2",
+    "cli-table3": "^0.5.1",
+    "dedent": "^0.7.0",
+    "execa": "^4.0.0",
+    "find-parent-dir": "^0.3.0",
+    "globby": "^10.0.1",
+    "load-json-file": "^6.2.0",
+    "lodash": "^4.17.15",
+    "moment": "^2.24.0",
+    "nth-log": "^1.0.0",
+    "p-limit": "^2.2.2",
+    "resolve-from": "^5.0.0",
+    "terminal-link": "^2.1.1",
+    "yargs": "^15.1.0"
+  },
+  "scripts": {
+    "lint": "eslint index.js bin __tests__ --max-warnings 0",
+    "lint:fix": "yarn run lint --fix",
+    "typecheck": "yarn run tsc",
+    "test": "yarn run lint && yarn run typecheck && CI=true jest"
+  },
+  "eslintConfig": {
+    "env": {
+      "es6": true,
+      "node": true
+    },
+    "rules": {
+      "no-console": "off",
+      "arrow-parens": "off",
+      "no-use-before-define": [
+        "error",
+        {
+          "functions": false
+        }
+      ]
+    },
+    "extends": [
+      "nth"
+    ]
+  }
+}
