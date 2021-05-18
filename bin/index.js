@@ -61,7 +61,7 @@ async function main() {
  */
 function dateOfTimestamp(timestampS) {
   const msInSeconds = 1000;
-  return moment(new Date(Number(timestampS) * msInSeconds));
+  return moment(new Date(Number(timestampS) * msInSeconds)).utc();
 }
 
 /**
