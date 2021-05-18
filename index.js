@@ -9,6 +9,7 @@ const moment = require('moment');
 const log = require('nth-log');
 const pLimit = require('p-limit');
 const os = require('os');
+const { Linter } = require('eslint');
 
 /**
  * @param {object} options 
@@ -27,7 +28,6 @@ async function queryPatternAge(options) {
   /** @type {import("eslint")} */
   const {CLIEngine, Linter} = require(eslintMainPath);
   const cliEngine = new CLIEngine({});
-  const linter = new Linter();
 
   const sampleFileCount = 10;
   const eslintReport = await log.logStep(
@@ -37,7 +37,7 @@ async function queryPatternAge(options) {
       ..._.pick(options, 'astSelector'),
       sampleFiles: _.take(files, sampleFileCount)
     }, 
-    () => getEslintReports(cliEngine, linter, files, options.astSelector)
+    () => getEslintReports(cliEngine, Linter, files, options.astSelector)
   );
   const locations = getLocations(eslintReport);
   const gitCommits = /** @type {import("./types").Commit[]} */ (await log.logStep(
@@ -212,12 +212,12 @@ function getEslintPath() {
 /**
  * 
  * @param {import("eslint").CLIEngine} cliEngine 
- * @param {import("eslint").Linter} linter 
+ * @param {{new(): import("eslint").Linter}} Linter 
  * @param {string[]} files 
  * @param {string} astSelector 
  * @return {Promise<{[filePath: string]: import("eslint").Linter.LintMessage[]}>}
  */
-async function getEslintReports(cliEngine, linter, files, astSelector) {
+async function getEslintReports(cliEngine, Linter, files, astSelector) {
   const pairs = await Promise.all(_(files)
     .reject(filePath => cliEngine.isPathIgnored(filePath))
     .map(async filePath => {
@@ -225,8 +225,16 @@ async function getEslintReports(cliEngine, linter, files, astSelector) {
       config.rules = {
         'no-restricted-syntax': [2, astSelector]
       };
-      log.trace({filePath}, 'Linting');
+      log.trace({filePath, config}, 'Linting');
       const fileContents = await readFile(filePath, 'utf8');
+      const linter = new Linter();
+
+      // If the config specifies a parser, like for @typescript-eslint, we need to manually register it.
+      if (config.parser) {
+        // https://eslint.org/docs/developer-guide/nodejs-api#linterdefineparser
+        linter.defineParser(config.parser, require(config.parser));
+      }
+
       const lintReport = linter.verify(fileContents, config);
 
       // If the eslint config uses special preprocessors to handle files like .md files, then when we lint here,
@@ -234,10 +242,11 @@ async function getEslintReports(cliEngine, linter, files, astSelector) {
       const parseError = _.find(lintReport, {ruleId: null});
       if (parseError) {
         throw new Error(dedent`File '${filePath}' could not be parsed. 
-          If you meant to ignore this file, update your 'paths' param to omit it. 
           If you want it to be parsed, then resolve the error that ESLint generated:
           
-          ${parseError.message}
+            "${parseError.message}"
+
+          If you meant to ignore this file, update your 'paths' param to omit it. 
         `);
       }
         
