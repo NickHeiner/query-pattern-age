@@ -29,6 +29,11 @@ const {argv} = require('yargs')
       choices: ['raw', 'pretty'],
       default: 'pretty'
     },
+    survey: {
+      alias: 's',
+      boolean: true, 
+      default: false
+    },
     hashUrlFormat: {
       alias: 'h',
       string: true,
@@ -45,9 +50,9 @@ const {argv} = require('yargs')
 async function main() {
   try {
     log.trace(argv);
-    const commits = await queryPatternAge(_.pick(argv, 'paths', 'astSelector', 'after'));
+    const result = await queryPatternAge(_.pick(argv, 'paths', 'astSelector', 'after', 'survey'));
     // @ts-ignore type inference doesn't detect the type of format properly.
-    format(commits, argv.format, argv.hashUrlFormat);
+    format(result, argv.format, argv.hashUrlFormat);
   } catch (e) {
     // Just stringifying the error may omit some fields we care about.
     console.log(e);
@@ -73,24 +78,28 @@ function formatDate(date) {
 }
 
 /**
- * @param {import("../types").Commit[]} commits 
+ * @param {import("type-fest").PromiseValue<ReturnType<typeof queryPatternAge>>} result 
  * @param {'raw' | 'pretty' | 'pretty'} format
  * @param {string} hashUrlFormat
  */
-function format(commits, format, hashUrlFormat) {
+function format(result, format, hashUrlFormat) {
   if (format === 'raw') {
-    console.log(JSON.stringify(commits));
+    console.log(JSON.stringify(result));
     return;
   }
 
   if (format === 'pretty') {
+    if (typeof result === 'number') {
+      console.log(`"${result}" instances of this pattern were found.`);
+      return;
+    }
     const table = new CliTable({
       head: ['Date', 'Committer', 'Occurrence Count', 'Files', 'Hash']
     });
 
     // CliTable types are wrong.
     // @ts-ignore
-    commits.forEach(({hash, timestampS, author, count, files}) => table.push([
+    result.forEach(({hash, timestampS, author, count, files}) => table.push([
       formatDate(dateOfTimestamp(timestampS)), 
       author, 
       // This breaks the table format, because the layout manager doesn't know how to interpret the non-rendered

@@ -13,9 +13,10 @@ const os = require('os');
 /**
  * @param {object} options 
  * @param {string} options.astSelector
+ * @param {boolean} options.survey
  * @param {string[]} options.paths
  * @param {string | undefined} options.after
- * @return {Promise<import("./types").Commit[]>}
+ * @return {Promise<import("./types").Commit[] | number>}
  */
 async function queryPatternAge(options) {
   const files = await log.logStep(
@@ -39,6 +40,16 @@ async function queryPatternAge(options) {
     () => getEslintReports(cliEngine, Linter, files, options.astSelector)
   );
   const locations = getLocations(eslintReport);
+
+  if (options.survey) {
+    const patternInstanceCount = _(locations)
+      .mapValues('length')
+      .values()
+      .sum();
+    return patternInstanceCount;
+  }
+
+  log.debug(locations);
   const gitCommits = /** @type {import("./types").Commit[]} */ (await log.logStep(
     {step: 'getting git timestamps', level: 'debug', countFiles: _.size(files)},
     (/** @type {any} */ logProgress) => getGitCommits(locations, logProgress)

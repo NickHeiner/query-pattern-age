@@ -9,7 +9,13 @@
   "bin": {
     "query-pattern-age": "./bin/index.js"
   },
-  "keywords": ["ast", "command-line-tool", "cli", "utility", "eslint"],
+  "keywords": [
+    "ast",
+    "command-line-tool",
+    "cli",
+    "utility",
+    "eslint"
+  ],
   "devDependencies": {
     "@types/dedent": "^0.7.0",
     "@types/eslint": "^6.1.3",
@@ -21,6 +27,7 @@
     "eslint-config-nth": "^2.0.1",
     "eslint-plugin-jest": "^23.3.0",
     "jest": "^24.9.0",
+    "type-fest": "1.1.2",
     "typescript": "^3.7.4"
   },
   "dependencies": {
