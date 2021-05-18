@@ -1,7 +1,6 @@
 const execa = require('execa');
 const packageJson = require('../package.json');
 const path = require('path');
-const _ = require('lodash');
 
 const binPath = path.resolve(__dirname, '..', packageJson.bin['query-pattern-age']);
 const astArgs = ['--astSelector', 'CallExpression[callee.object.name=console][callee.property.name=log]'];
@@ -28,9 +27,10 @@ describe('query-pattern-age', () => {
   });
   it('pretty', async () => {
     const {stdout} = await execTest([...baseArgs, '--format', 'pretty'], {
-      // If CI=true, the output will have no color. We want to assert that the output does have color.
-      env: _.omit(process.env, 'CI'),
-      extendEnv: false
+      env: {
+        // https://github.com/marak/colors.js#enablingdisabling-colors
+        FORCE_COLOR: '1'
+      }
     });
     expect(stdout).toMatchSnapshot();
   });
