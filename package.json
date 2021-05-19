@@ -1,6 +1,6 @@
 {
   "name": "query-pattern-age",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Provide an AST pattern, and see details about when that pattern was introduced to your codebase",
   "main": "index.js",
   "repository": "git@github.com:NickHeiner/query-pattern-age.git",
@@ -9,7 +9,13 @@
   "bin": {
     "query-pattern-age": "./bin/index.js"
   },
-  "keywords": ["ast", "command-line-tool", "cli", "utility", "eslint"],
+  "keywords": [
+    "ast",
+    "command-line-tool",
+    "cli",
+    "utility",
+    "eslint"
+  ],
   "devDependencies": {
     "@types/dedent": "^0.7.0",
     "@types/eslint": "^6.1.3",
@@ -21,7 +27,7 @@
     "eslint-config-nth": "^2.0.1",
     "eslint-plugin-jest": "^23.3.0",
     "jest": "^24.9.0",
-    "typescript": "^3.7.4"
+    "typescript": "4.2.4"
   },
   "dependencies": {
     "@types/node": "^13.1.2",

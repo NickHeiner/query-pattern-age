@@ -162,7 +162,7 @@ async function getGitCommits(locations, logProgress) {
       count: commits.length,
       files: _.map(commits, 'filePath'),
       commands: _.map(commits, 'command'),
-      ..._.omit(commits[0], 'filePath', 'command')
+      ..._.omit(commits[0], 'filePath', 'command', 'count', 'files')
     }))
     .value();
 }
