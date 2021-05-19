@@ -45,7 +45,10 @@ async function queryPatternAge(options) {
     }, 
     () => getEslintReports(cliEngine, Linter, files, options.astSelector)
   );
+
+  log.trace({eslintReport});
   const locations = getLocations(eslintReport);
+  log.trace({locations});
 
   if (options.survey) {
     const patternInstanceCount = _(locations)
@@ -59,7 +62,6 @@ async function queryPatternAge(options) {
     };
   }
 
-  log.debug(locations);
   const gitCommits = /** @type {import("./types").Commit[]} */ (await log.logPhase(
     {phase: 'getting git timestamps', level: 'debug', countFiles: _.size(files)},
     (/** @type {any} */ logProgress) => getGitCommits(locations, logProgress)
@@ -208,7 +210,13 @@ function filterValues(object, predicate) {
 function getLocations(eslintReport) {
   return filterValues(_.mapValues(
     eslintReport, 
-    messages => _.map(messages, message => _.pick(message, ['line', 'endLine']))
+    messages => 
+      _(messages)
+        // If the user has disables for custom rules, like "eslint-disable my-rule", that rule's config will not be 
+        // found. Those errors don't matter for our purposes, so we'll ignore them.
+        .filter({ruleId: 'no-restricted-syntax'})
+        .map(message => _.pick(message, ['line', 'endLine']))
+        .value()
   ), violations => Boolean(violations.length));
 }
 
