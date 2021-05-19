@@ -10,6 +10,8 @@ const pLimit = require('p-limit');
 const os = require('os');
 const log = require('./src/log');
 
+// TODO: Should this ditch ESLint and use https://github.com/estools/esquery directly?
+
 /* eslint-disable max-len */
 /**
  * @param {object} options 
