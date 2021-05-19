@@ -19,7 +19,7 @@ const log = require('./src/log');
  * @param {boolean} options.survey
  * @param {string[]} options.paths
  * @param {string | undefined} options.after
- * @return {Promise<import("./types").Commit[] | {patternInstanceCount: number; filesWithInstanceCount: number, totalFilesSearchedCount: number; sampleFilesWithPattern: string[]}>}
+ * @return {Promise<Omit<import("./types").Commit, 'filePath'>[] | {patternInstanceCount: number; filesWithInstanceCount: number, totalFilesSearchedCount: number; sampleFilesWithPattern: string[]}>}
  */
 /* eslint-enable max-len */
 async function queryPatternAge(options) {
@@ -69,10 +69,10 @@ async function queryPatternAge(options) {
     };
   }
 
-  const gitCommits = /** @type {import("./types").Commit[]} */ (await log.logPhase(
+  const gitCommits = await log.logPhase(
     {phase: 'getting git timestamps', level: 'debug', countFiles: _.size(files)},
     (/** @type {any} */ logProgress) => getGitCommits(locations, logProgress)
-  ));
+  );
 
   const sortedGitCommits = _.sortBy(gitCommits, 'timestampS');
 
@@ -91,6 +91,7 @@ async function queryPatternAge(options) {
 /**
  * @param {ReturnType<typeof getLocations>} locations 
  * @param {Function} logProgress 
+ * @returns {Promise<Record<string, Omit<import("./types").Commit, 'filePath'>>>}
  */
 async function getGitCommits(locations, logProgress) {
   // The type signature for pLimit is wrong.
