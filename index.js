@@ -12,6 +12,8 @@ const log = require('./src/log');
 
 // TODO: Should this ditch ESLint and use https://github.com/estools/esquery directly?
 
+// TODO: The type around Commit is sloppy.
+
 /* eslint-disable max-len */
 /**
  * @param {object} options 
