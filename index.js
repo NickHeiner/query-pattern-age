@@ -10,15 +10,16 @@ const pLimit = require('p-limit');
 const os = require('os');
 const log = require('./src/log');
 
-
+/* eslint-disable max-len */
 /**
  * @param {object} options 
  * @param {string} options.astSelector
  * @param {boolean} options.survey
  * @param {string[]} options.paths
  * @param {string | undefined} options.after
- * @return {Promise<import("./types").Commit[] | {patternInstanceCount: number; filesWithInstanceCount: number, totalFilesSearchedCount: number}>}
+ * @return {Promise<import("./types").Commit[] | {patternInstanceCount: number; filesWithInstanceCount: number, totalFilesSearchedCount: number; sampleFilesWithPattern: string[]}>}
  */
+/* eslint-enable max-len */
 async function queryPatternAge(options) {
   const files = await log.logPhase(
     {phase: 'finding files via globby', level: 'debug', ..._.pick(options, 'paths')},
@@ -55,9 +56,13 @@ async function queryPatternAge(options) {
       .mapValues('length')
       .values()
       .sum();
+
+    const filesWithInstances = Object.keys(locations);
+
     return {
       patternInstanceCount, 
-      filesWithInstanceCount: Object.keys(locations).length,
+      filesWithInstanceCount: filesWithInstances.length,
+      sampleFilesWithPattern: _.sampleSize(filesWithInstances, sampleFileCount),
       totalFilesSearchedCount: files.length
     };
   }

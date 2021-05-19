@@ -94,8 +94,9 @@ function format(result, format, hashUrlFormat, astSelector, paths) {
     if ('patternInstanceCount' in result) {
       console.log(
         // eslint-disable-next-line max-len
-        `"${result.patternInstanceCount}" instances of this pattern were found across "${result.filesWithInstanceCount}" files. In total, "${result.totalFilesSearchedCount}" files were searched.`
+        `"${result.patternInstanceCount}" instances of this pattern were found across "${result.filesWithInstanceCount}" files. In total, "${result.totalFilesSearchedCount}" files were searched. Sample files with this pattern:`
       );
+      result.sampleFilesWithPattern.forEach(file => console.log(`* ${file}`));
       return;
     }
     const table = new CliTable({
