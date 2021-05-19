@@ -6,9 +6,10 @@ const globby = require('globby');
 const readFile = promisify(require('fs').readFile.bind(require('fs')));
 const execa = require('execa');
 const moment = require('moment');
-const log = require('nth-log');
 const pLimit = require('p-limit');
 const os = require('os');
+const log = require('./src/log');
+
 
 /**
  * @param {object} options 
@@ -16,12 +17,16 @@ const os = require('os');
  * @param {boolean} options.survey
  * @param {string[]} options.paths
  * @param {string | undefined} options.after
- * @return {Promise<import("./types").Commit[] | number>}
+ * @return {Promise<import("./types").Commit[] | {patternInstanceCount: number; filesWithInstanceCount: number, totalFilesSearchedCount: number}>}
  */
 async function queryPatternAge(options) {
-  const files = await log.logStep(
-    {step: 'finding files via globby', level: 'debug', ..._.pick(options, 'paths')},
-    () => globby(options.paths)
+  const files = await log.logPhase(
+    {phase: 'finding files via globby', level: 'debug', ..._.pick(options, 'paths')},
+    () => globby(options.paths, {
+      // This is probably not necessary for correctness, because we filter out eslint-ignored files later.
+      // But, for performance, let's omit ignorable files as early as possible.
+      gitignore: true
+    })
   );
   const eslintMainPath = getEslintPath();
   
@@ -30,10 +35,11 @@ async function queryPatternAge(options) {
   const cliEngine = new CLIEngine({});
 
   const sampleFileCount = 10;
-  const eslintReport = await log.logStep(
+  const eslintReport = await log.logPhase(
     {
-      step: 'running ESLint on files', 
-      level: 'debug', countFiles: files.length, 
+      phase: 'running ESLint on files', 
+      level: 'debug', 
+      countFiles: files.length, 
       ..._.pick(options, 'astSelector'),
       sampleFiles: _.take(files, sampleFileCount)
     }, 
@@ -46,12 +52,16 @@ async function queryPatternAge(options) {
       .mapValues('length')
       .values()
       .sum();
-    return patternInstanceCount;
+    return {
+      patternInstanceCount, 
+      filesWithInstanceCount: Object.keys(locations).length,
+      totalFilesSearchedCount: files.length
+    };
   }
 
   log.debug(locations);
-  const gitCommits = /** @type {import("./types").Commit[]} */ (await log.logStep(
-    {step: 'getting git timestamps', level: 'debug', countFiles: _.size(files)},
+  const gitCommits = /** @type {import("./types").Commit[]} */ (await log.logPhase(
+    {phase: 'getting git timestamps', level: 'debug', countFiles: _.size(files)},
     (/** @type {any} */ logProgress) => getGitCommits(locations, logProgress)
   ));
 

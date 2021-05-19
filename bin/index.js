@@ -1,7 +1,7 @@
 #! /usr/bin/env node
 
 const queryPatternAge = require('..');
-const log = require('nth-log');
+const log = require('../src/log');
 const _ = require('lodash');
 const moment = require('moment');
 const CliTable = require('cli-table3');
@@ -52,7 +52,7 @@ async function main() {
     log.trace(argv);
     const result = await queryPatternAge(_.pick(argv, 'paths', 'astSelector', 'after', 'survey'));
     // @ts-ignore type inference doesn't detect the type of format properly.
-    format(result, argv.format, argv.hashUrlFormat);
+    format(result, argv.format, argv.hashUrlFormat, argv.astSelector, argv.paths);
   } catch (e) {
     // Just stringifying the error may omit some fields we care about.
     console.log(e);
@@ -79,18 +79,23 @@ function formatDate(date) {
 
 /**
  * @param {import("type-fest").PromiseValue<ReturnType<typeof queryPatternAge>>} result 
- * @param {'raw' | 'pretty' | 'pretty'} format
+ * @param {'raw' | 'pretty' } format
  * @param {string} hashUrlFormat
+ * @param {string} astSelector
+ * @param {string[]} paths
  */
-function format(result, format, hashUrlFormat) {
+function format(result, format, hashUrlFormat, astSelector, paths) {
   if (format === 'raw') {
-    console.log(JSON.stringify(result));
+    console.log(JSON.stringify({...result, astSelector, paths}));
     return;
   }
 
   if (format === 'pretty') {
-    if (typeof result === 'number') {
-      console.log(`"${result}" instances of this pattern were found.`);
+    if ('patternInstanceCount' in result) {
+      console.log(
+        // eslint-disable-next-line max-len
+        `"${result.patternInstanceCount}" instances of this pattern were found across "${result.filesWithInstanceCount}" files. In total, "${result.totalFilesSearchedCount}" files were searched.`
+      );
       return;
     }
     const table = new CliTable({

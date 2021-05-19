@@ -355,6 +355,13 @@
   dependencies:
     "@babel/types" "^7.3.0"
 
+"@types/bunyan@^1.8.6":
+  version "1.8.6"
+  resolved "https://registry.yarnpkg.com/@types/bunyan/-/bunyan-1.8.6.tgz#6527641cca30bedec5feb9ab527b7803b8000582"
+  integrity sha512-YiozPOOsS6bIuz31ilYqR5SlLif4TBWsousN2aCWLi5233nZSX19tFbcQUPdR7xJ8ypPyxkCGNxg0CIV5n9qxQ==
+  dependencies:
+    "@types/node" "*"
+
 "@types/color-name@^1.1.1":
   version "1.1.1"
   resolved "https://registry.yarnpkg.com/@types/color-name/-/color-name-1.1.1.tgz#1c1261bbeaa10a8055bbc5d8ab84b7b2afc846a0"
@@ -2927,6 +2934,11 @@ lodash@^4.17.13, lodash@^4.17.14, lodash@^4.17.15:
   resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.17.15.tgz#b447f6670a0455bbfeedd11392eff330ea097548"
   integrity sha512-8xOcRHvCjnocdS5cpwXQXVzmmh5e5+saE2QGoeQmbKmRS6J3VQppPOIt0MnmE+4xlZoumy0GPG0D0MVIQbNA1A==
 
+lodash@^4.17.20:
+  version "4.17.21"
+  resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.17.21.tgz#679591c564c3bffaae8454cf0b3df370c3d6911c"
+  integrity sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==
+
 loose-envify@^1.0.0, loose-envify@^1.4.0:
   version "1.4.0"
   resolved "https://registry.yarnpkg.com/loose-envify/-/loose-envify-1.4.0.tgz#71ee51fa7be4caec1a63839f7e682d8132d30caf"
@@ -3175,14 +3187,15 @@ npm-run-path@^4.0.0:
   dependencies:
     path-key "^3.0.0"
 
-nth-log@^1.0.0:
-  version "1.0.0"
-  resolved "https://registry.yarnpkg.com/nth-log/-/nth-log-1.0.0.tgz#a46461c01272871b361ba439c32931979ef043e5"
-  integrity sha512-mR0r0D7Ir1uSL2PyadZGVF2iZ52S6XntZbEkk64C7NU7nhTgXwyBXKTW5mJfhaOZgTCbV2GpFJj+5XZYgoVmkw==
+nth-log@2.0.1:
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/nth-log/-/nth-log-2.0.1.tgz#c980fa320996f6a6a48cb41bb985aa960094e984"
+  integrity sha512-IU5mIIMFhgunZ+kYXCo7j2FajTwMQCZbPErDNdfs5E/wPhU1QrwN+xysZXPWCxsw2jt4SpSB6nm7kyAoy3PzJw==
   dependencies:
+    "@types/bunyan" "^1.8.6"
     bunyan "^1.8.12"
     bunyan-format "^0.2.1"
-    lodash "^4.17.15"
+    lodash "^4.17.20"
     pretty-ms "^5.1.0"
 
 nwsapi@^2.0.7:

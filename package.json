@@ -40,7 +40,7 @@
     "load-json-file": "^6.2.0",
     "lodash": "^4.17.15",
     "moment": "^2.24.0",
-    "nth-log": "^1.0.0",
+    "nth-log": "2.0.1",
     "p-limit": "^2.2.2",
     "resolve-from": "^5.0.0",
     "terminal-link": "^2.1.1",
