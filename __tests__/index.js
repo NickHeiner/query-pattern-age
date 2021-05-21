@@ -5,7 +5,7 @@ const path = require('path');
 const binPath = path.resolve(__dirname, '..', packageJson.bin['query-pattern-age']);
 const astArgs = ['--astSelector', 'CallExpression[callee.object.name=console][callee.property.name=log]'];
 const baseArgs = [
-  '--paths', path.join('..', '__fixtures__'), 
+  '--paths', '__fixtures__', 
   ...astArgs
 ];
 
@@ -16,7 +16,7 @@ const baseArgs = [
  */
 // Setting "opts = {}" was the only way I could figure out to make opts optional.
 const execTest = (args, opts = {}) => execa(binPath, args, {
-  cwd: __dirname,
+  cwd: path.join(__dirname, '..'),
   ...opts
 });
 
@@ -38,7 +38,7 @@ describe('query-pattern-age', () => {
     const {stdout} = await execTest([
       ...astArgs, 
       '--format', 'raw', 
-      '--paths', path.join('..', '__fixtures__', 'also-contains-pattern.js')
+      '--paths', path.join('__fixtures__', 'also-contains-pattern.js')
     ]);
     expect(JSON.parse(stdout)).toMatchSnapshot();
   });
