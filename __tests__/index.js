@@ -23,6 +23,8 @@ const execTest = (args, opts = {}) => execa(binPath, args, {
 describe('query-pattern-age', () => {
   test.each([
     ['raw', {}, [...baseArgs, '--format', 'raw']],
+    ['raw survey', {}, [...baseArgs, '--format', 'raw', '--survey']],
+    ['default survey', {stdoutIsJson: false}, [...baseArgs, '--survey']],
     ['pretty', {stdoutIsJson: false}, [...baseArgs, '--format', 'pretty'], {
       env: {
         // https://github.com/marak/colors.js#enablingdisabling-colors

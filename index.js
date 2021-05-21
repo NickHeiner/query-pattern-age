@@ -66,7 +66,7 @@ async function queryPatternAge(options) {
     return {
       patternInstanceCount, 
       filesWithInstanceCount: filesWithInstances.length,
-      sampleFilesWithPattern: _.sampleSize(filesWithInstances, sampleFileCount),
+      sampleFilesWithPattern: getSample(filesWithInstances, sampleFileCount),
       totalFilesSearchedCount: files.length
     };
   }
@@ -88,6 +88,19 @@ async function queryPatternAge(options) {
     .filter(({timestampS}) => timestampS >= afterTimestampS)
     .sortBy('timestampS')
     .value();
+}
+
+/**
+ * To avoid randomness which would break tests, be consistent when running from unit tests.
+ * This is a little naughty, I know. :)
+ * 
+ * @template T
+ * @param {T[]} items 
+ * @param {number} size 
+ * @returns {T[]}
+ */
+function getSample(items, size) {
+  return process.env.NODE_ENV === 'test' ? items.slice(0, size) : _.sampleSize(items, size);
 }
 
 /**

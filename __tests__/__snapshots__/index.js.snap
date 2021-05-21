@@ -1,5 +1,11 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`query-pattern-age default survey 1`] = `
+"\\"3\\" instances of this pattern were found across \\"2\\" files. In total, \\"3\\" files were searched. Sample files with this pattern:
+* __fixtures__/also-contains-pattern.js
+* __fixtures__/contains-pattern.js"
+`;
+
 exports[`query-pattern-age only one file 1`] = `
 Object {
   "0": Object {
@@ -64,5 +70,21 @@ Object {
   "paths": Array [
     "__fixtures__",
   ],
+}
+`;
+
+exports[`query-pattern-age raw survey 1`] = `
+Object {
+  "astSelector": "CallExpression[callee.object.name=console][callee.property.name=log]",
+  "filesWithInstanceCount": 2,
+  "paths": Array [
+    "__fixtures__",
+  ],
+  "patternInstanceCount": 3,
+  "sampleFilesWithPattern": Array [
+    "__fixtures__/also-contains-pattern.js",
+    "__fixtures__/contains-pattern.js",
+  ],
+  "totalFilesSearchedCount": 3,
 }
 `;
