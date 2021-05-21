@@ -11,6 +11,7 @@ const os = require('os');
 const log = require('./src/log');
 
 // TODO: Should this ditch ESLint and use https://github.com/estools/esquery directly?
+// That would require the user specifying babel config. ESQuery takes an AST. Currently, ESLint handles parsing.
 
 // TODO: The type around Commit is sloppy.
 
