@@ -38,7 +38,7 @@
     "find-parent-dir": "^0.3.0",
     "globby": "^10.0.1",
     "load-json-file": "^6.2.0",
-    "lodash": "^4.17.15",
+    "lodash": "^4.17.21",
     "moment": "^2.24.0",
     "nth-log": "2.0.1",
     "p-limit": "^2.2.2",
