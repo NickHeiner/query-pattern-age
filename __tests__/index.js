@@ -21,25 +21,29 @@ const execTest = (args, opts = {}) => execa(binPath, args, {
 });
 
 describe('query-pattern-age', () => {
-  it('raw', async () => {
-    const {stdout} = await execTest([...baseArgs, '--format', 'raw']);
-    expect(JSON.parse(stdout)).toMatchSnapshot();
-  });
-  it('pretty', async () => {
-    const {stdout} = await execTest([...baseArgs, '--format', 'pretty'], {
+  test.each([
+    ['raw', {}, [...baseArgs, '--format', 'raw']],
+    ['pretty', {stdoutIsJson: false}, [...baseArgs, '--format', 'pretty'], {
       env: {
         // https://github.com/marak/colors.js#enablingdisabling-colors
         FORCE_COLOR: '1'
       }
-    });
-    expect(stdout).toMatchSnapshot();
-  });
-  it('only one file', async () => {
-    const {stdout} = await execTest([
-      ...astArgs, 
-      '--format', 'raw', 
-      '--paths', path.join('__fixtures__', 'also-contains-pattern.js')
-    ]);
-    expect(JSON.parse(stdout)).toMatchSnapshot();
+    }],
+    [
+      'only one file',
+      {},
+      [
+        ...astArgs, 
+        '--format', 'raw', 
+        '--paths', path.join('__fixtures__', 'also-contains-pattern.js')
+      ]
+    ]
+  ])('%s', async (_, rawOpts, /** @type Parameters<typeof execTest> */...execArgs ) => {
+    const opts = {
+      stdoutIsJson: true,
+      ...rawOpts
+    };
+    const {stdout} = await execTest(...execArgs);
+    expect(opts.stdoutIsJson ? JSON.parse(stdout) : stdout).toMatchSnapshot();
   });
 });
