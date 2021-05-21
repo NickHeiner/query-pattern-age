@@ -32,19 +32,28 @@ const {argv} = require('yargs')
     survey: {
       alias: 's',
       boolean: true, 
-      default: false
+      default: false,
+      description: 'Instead of seeing git commits where this pattern was introduced, just see a summary of how ' +
+        'prevalent it is in the codebase.'
     },
     hashUrlFormat: {
       alias: 'h',
       string: true,
       description: 'A URL format to use for linking hashes to their commit web pages in terminal output. ' +
         'Pass a URL with "%s" in place of the hash. For instance, "https://github.com/org/repo/commit/%s". ' +
-        'Unfortunately, this makes the output of --format pretty look bad.'
+        'Unfortunately, this makes the output of "--format pretty" look bad.'
     },
     after: {
       string: true,
       description: 'A date (formated YYYY-M-D, like "2017-1-15") after which you want to see commits.'
     }
+  })
+  .check(argv => {
+    if (argv.survey && (argv.hashUrlFormat || argv.after)) {
+      throw new Error(
+        '--survey is not compatible with --hash-url-format or --after, since they only apply to the git blame mode.'
+      );
+    }  
   });
 
 async function main() {
