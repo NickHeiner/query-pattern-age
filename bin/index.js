@@ -1,7 +1,7 @@
 #! /usr/bin/env node
 
 const queryPatternAge = require('..');
-const log = require('nth-log');
+const log = require('../src/log');
 const _ = require('lodash');
 const moment = require('moment');
 const CliTable = require('cli-table3');
@@ -29,25 +29,40 @@ const {argv} = require('yargs')
       choices: ['raw', 'pretty'],
       default: 'pretty'
     },
+    survey: {
+      alias: 's',
+      boolean: true, 
+      default: false,
+      description: 'Instead of seeing git commits where this pattern was introduced, just see a summary of how ' +
+        'prevalent it is in the codebase.'
+    },
     hashUrlFormat: {
       alias: 'h',
       string: true,
       description: 'A URL format to use for linking hashes to their commit web pages in terminal output. ' +
         'Pass a URL with "%s" in place of the hash. For instance, "https://github.com/org/repo/commit/%s". ' +
-        'Unfortunately, this makes the output of --format pretty look bad.'
+        'Unfortunately, this makes the output of "--format pretty" look bad.'
     },
     after: {
       string: true,
       description: 'A date (formated YYYY-M-D, like "2017-1-15") after which you want to see commits.'
     }
+  })
+  .check(argv => {
+    if (argv.survey && (argv.hashUrlFormat || argv.after)) {
+      throw new Error(
+        '--survey is not compatible with --hash-url-format or --after, since they only apply to the git blame mode.'
+      );
+    }
+    return true;  
   });
 
 async function main() {
   try {
     log.trace(argv);
-    const commits = await queryPatternAge(_.pick(argv, 'paths', 'astSelector', 'after'));
+    const result = await queryPatternAge(_.pick(argv, 'paths', 'astSelector', 'after', 'survey'));
     // @ts-ignore type inference doesn't detect the type of format properly.
-    format(commits, argv.format, argv.hashUrlFormat);
+    format(result, argv.format, argv.hashUrlFormat, argv.astSelector, argv.paths);
   } catch (e) {
     // Just stringifying the error may omit some fields we care about.
     console.log(e);
@@ -73,24 +88,34 @@ function formatDate(date) {
 }
 
 /**
- * @param {import("../types").Commit[]} commits 
- * @param {'raw' | 'pretty' | 'pretty'} format
+ * @param {import("type-fest").PromiseValue<ReturnType<typeof queryPatternAge>>} result 
+ * @param {'raw' | 'pretty' } format
  * @param {string} hashUrlFormat
+ * @param {string} astSelector
+ * @param {string[]} paths
  */
-function format(commits, format, hashUrlFormat) {
+function format(result, format, hashUrlFormat, astSelector, paths) {
   if (format === 'raw') {
-    console.log(JSON.stringify(commits));
+    console.log(JSON.stringify({...result, astSelector, paths}));
     return;
   }
 
   if (format === 'pretty') {
+    if ('patternInstanceCount' in result) {
+      console.log(
+        // eslint-disable-next-line max-len
+        `"${result.patternInstanceCount}" instances of this pattern were found across "${result.filesWithInstanceCount}" files. In total, "${result.totalFilesSearchedCount}" files were searched. Sample files with this pattern:`
+      );
+      result.sampleFilesWithPattern.forEach(file => console.log(`* ${file}`));
+      return;
+    }
     const table = new CliTable({
       head: ['Date', 'Committer', 'Occurrence Count', 'Files', 'Hash']
     });
 
     // CliTable types are wrong.
     // @ts-ignore
-    commits.forEach(({hash, timestampS, author, count, files}) => table.push([
+    result.forEach(({hash, timestampS, author, count, files}) => table.push([
       formatDate(dateOfTimestamp(timestampS)), 
       author, 
       // This breaks the table format, because the layout manager doesn't know how to interpret the non-rendered

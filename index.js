@@ -6,44 +6,75 @@ const globby = require('globby');
 const readFile = promisify(require('fs').readFile.bind(require('fs')));
 const execa = require('execa');
 const moment = require('moment');
-const log = require('nth-log');
 const pLimit = require('p-limit');
 const os = require('os');
+const log = require('./src/log');
 
+// TODO: Should this ditch ESLint and use https://github.com/estools/esquery directly?
+
+// TODO: The type around Commit is sloppy.
+
+/* eslint-disable max-len */
 /**
  * @param {object} options 
  * @param {string} options.astSelector
+ * @param {boolean} options.survey
  * @param {string[]} options.paths
  * @param {string | undefined} options.after
- * @return {Promise<import("./types").Commit[]>}
+ * @return {Promise<Omit<import("./types").Commit, 'filePath'>[] | {patternInstanceCount: number; filesWithInstanceCount: number, totalFilesSearchedCount: number; sampleFilesWithPattern: string[]}>}
  */
+/* eslint-enable max-len */
 async function queryPatternAge(options) {
-  const files = await log.logStep(
-    {step: 'finding files via globby', level: 'debug', ..._.pick(options, 'paths')},
-    () => globby(options.paths)
+  const files = await log.logPhase(
+    {phase: 'finding files via globby', level: 'debug', ..._.pick(options, 'paths')},
+    () => globby(options.paths, {
+      // This is probably not necessary for correctness, because we filter out eslint-ignored files later.
+      // But, for performance, let's omit ignorable files as early as possible.
+      gitignore: true
+    })
   );
   const eslintMainPath = getEslintPath();
   
   /** @type {import("eslint")} */
   const {CLIEngine, Linter} = require(eslintMainPath);
   const cliEngine = new CLIEngine({});
-  const linter = new Linter();
 
   const sampleFileCount = 10;
-  const eslintReport = await log.logStep(
+  const eslintReport = await log.logPhase(
     {
-      step: 'running ESLint on files', 
-      level: 'debug', countFiles: files.length, 
+      phase: 'running ESLint on files', 
+      level: 'debug', 
+      countFiles: files.length, 
       ..._.pick(options, 'astSelector'),
       sampleFiles: _.take(files, sampleFileCount)
     }, 
-    () => getEslintReports(cliEngine, linter, files, options.astSelector)
+    () => getEslintReports(cliEngine, Linter, files, options.astSelector)
   );
+
+  log.trace({eslintReport});
   const locations = getLocations(eslintReport);
-  const gitCommits = /** @type {import("./types").Commit[]} */ (await log.logStep(
-    {step: 'getting git timestamps', level: 'debug', countFiles: _.size(files)},
+  log.trace({locations});
+
+  if (options.survey) {
+    const patternInstanceCount = _(locations)
+      .mapValues('length')
+      .values()
+      .sum();
+
+    const filesWithInstances = Object.keys(locations);
+
+    return {
+      patternInstanceCount, 
+      filesWithInstanceCount: filesWithInstances.length,
+      sampleFilesWithPattern: getSample(filesWithInstances, sampleFileCount),
+      totalFilesSearchedCount: files.length
+    };
+  }
+
+  const gitCommits = await log.logPhase(
+    {phase: 'getting git timestamps', level: 'debug', countFiles: _.size(files)},
     (/** @type {any} */ logProgress) => getGitCommits(locations, logProgress)
-  ));
+  );
 
   const sortedGitCommits = _.sortBy(gitCommits, 'timestampS');
 
@@ -60,8 +91,22 @@ async function queryPatternAge(options) {
 }
 
 /**
+ * To avoid randomness which would break tests, be consistent when running from unit tests.
+ * This is a little naughty, I know. :)
+ * 
+ * @template T
+ * @param {T[]} items 
+ * @param {number} size 
+ * @returns {T[]}
+ */
+function getSample(items, size) {
+  return process.env.NODE_ENV === 'test' ? items.slice(0, size) : _.sampleSize(items, size);
+}
+
+/**
  * @param {ReturnType<typeof getLocations>} locations 
  * @param {Function} logProgress 
+ * @returns {Promise<Record<string, Omit<import("./types").Commit, 'filePath'>>>}
  */
 async function getGitCommits(locations, logProgress) {
   // The type signature for pLimit is wrong.
@@ -188,7 +233,13 @@ function filterValues(object, predicate) {
 function getLocations(eslintReport) {
   return filterValues(_.mapValues(
     eslintReport, 
-    messages => _.map(messages, message => _.pick(message, ['line', 'endLine']))
+    messages => 
+      _(messages)
+        // If the user has disables for custom rules, like "eslint-disable my-rule", that rule's config will not be 
+        // found. Those errors don't matter for our purposes, so we'll ignore them.
+        .filter({ruleId: 'no-restricted-syntax'})
+        .map(message => _.pick(message, ['line', 'endLine']))
+        .value()
   ), violations => Boolean(violations.length));
 }
 
@@ -212,21 +263,37 @@ function getEslintPath() {
 /**
  * 
  * @param {import("eslint").CLIEngine} cliEngine 
- * @param {import("eslint").Linter} linter 
+ * @param {{new(): import("eslint").Linter}} Linter 
  * @param {string[]} files 
  * @param {string} astSelector 
  * @return {Promise<{[filePath: string]: import("eslint").Linter.LintMessage[]}>}
  */
-async function getEslintReports(cliEngine, linter, files, astSelector) {
+async function getEslintReports(cliEngine, Linter, files, astSelector) {
   const pairs = await Promise.all(_(files)
     .reject(filePath => cliEngine.isPathIgnored(filePath))
     .map(async filePath => {
+      const linter = new Linter();
+
       const config = cliEngine.getConfigForFile(filePath);
       config.rules = {
         'no-restricted-syntax': [2, astSelector]
       };
-      log.trace({filePath}, 'Linting');
+
+      // If the config specifies a parser, like for @typescript-eslint, we need to manually register it.
+      if (config.parser) {
+        // https://eslint.org/docs/developer-guide/nodejs-api#linterdefineparser
+        linter.defineParser(config.parser, require(config.parser));
+      }
+
+      // Normally, this is a good setting. However, given that we set rules to be solely no-restricted-syntax, we may
+      // see disable directives that are now unused.
+      // 
+      // @ts-expect-error This type is missing, but should be there.
+      config.reportUnusedDisableDirectives = false;
+
+      log.trace({filePath, config}, 'Linting');
       const fileContents = await readFile(filePath, 'utf8');
+
       const lintReport = linter.verify(fileContents, config);
 
       // If the eslint config uses special preprocessors to handle files like .md files, then when we lint here,
@@ -234,10 +301,11 @@ async function getEslintReports(cliEngine, linter, files, astSelector) {
       const parseError = _.find(lintReport, {ruleId: null});
       if (parseError) {
         throw new Error(dedent`File '${filePath}' could not be parsed. 
-          If you meant to ignore this file, update your 'paths' param to omit it. 
           If you want it to be parsed, then resolve the error that ESLint generated:
           
-          ${parseError.message}
+            "${parseError.message}"
+
+          If you meant to ignore this file, update your 'paths' param to omit it. 
         `);
       }
         
