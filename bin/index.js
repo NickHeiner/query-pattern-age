@@ -53,7 +53,8 @@ const {argv} = require('yargs')
       throw new Error(
         '--survey is not compatible with --hash-url-format or --after, since they only apply to the git blame mode.'
       );
-    }  
+    }
+    return true;  
   });
 
 async function main() {

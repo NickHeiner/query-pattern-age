@@ -2,6 +2,8 @@ const execa = require('execa');
 const packageJson = require('../package.json');
 const path = require('path');
 
+const log = require('../src/log');
+
 const binPath = path.resolve(__dirname, '..', packageJson.bin['query-pattern-age']);
 const astArgs = ['--astSelector', 'CallExpression[callee.object.name=console][callee.property.name=log]'];
 const baseArgs = [
@@ -15,10 +17,13 @@ const baseArgs = [
  * @returns 
  */
 // Setting "opts = {}" was the only way I could figure out to make opts optional.
-const execTest = (args, opts = {}) => execa(binPath, args, {
-  cwd: path.join(__dirname, '..'),
-  ...opts
-});
+const execTest = (args, opts = {}) => {
+  log.debug('Invoking', {args});
+  return execa(binPath, args, {
+    cwd: path.join(__dirname, '..'),
+    ...opts
+  });
+};
 
 describe('query-pattern-age', () => {
   test.each([
@@ -40,12 +45,36 @@ describe('query-pattern-age', () => {
         '--paths', path.join('__fixtures__', 'also-contains-pattern.js')
       ]
     ]
-  ])('%s', async (_, rawOpts, /** @type Parameters<typeof execTest> */...execArgs ) => {
+  ])('%s', async (_, rawOpts, /** @type Parameters<typeof execTest> */...execArgs) => {
     const opts = {
       stdoutIsJson: true,
       ...rawOpts
     };
     const {stdout} = await execTest(...execArgs);
     expect(opts.stdoutIsJson ? JSON.parse(stdout) : stdout).toMatchSnapshot();
+  });
+
+  describe('conflicting args', () => {
+    test.each([
+      [
+        ['--survey', '--hash-url-format', 'http://foo/%s'], 
+        '--survey is not compatible with --hash-url-format or --after, since they only apply to the git blame mode.'
+      ],
+      [
+        ['--survey', '--after', '2021-01-01'], 
+        '--survey is not compatible with --hash-url-format or --after, since they only apply to the git blame mode.'
+      ]
+    ])('flags are invalid: %p', async (flags, message) => {
+      try {
+        await execTest([...baseArgs, ...flags]);
+        // ESLint is wrong. This global is available.
+        // eslint-disable-next-line no-undef
+        fail('The command should have failed');
+      } catch (err) {
+        expect(err.exitCode).toBe(1);
+        expect(err.stderr).toContain(message);
+      }
+    });
+
   });
 });
