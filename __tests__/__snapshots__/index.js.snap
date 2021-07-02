@@ -2,9 +2,9 @@
 
 exports[`query-file-edit-count default 1`] = `
 "[
-  [ '__fixtures__/contains-pattern.js', 2 ],
-  [ '__fixtures__/also-contains-pattern.js', 1 ],
-  [ '__fixtures__/does-not-contain-pattern.js', 1 ]
+  [ '__fixtures__/does-not-contain-pattern.js', 3 ],
+  [ '__fixtures__/also-contains-pattern.js', 2 ],
+  [ '__fixtures__/contains-pattern.js', 2 ]
 ]"
 `;
 
