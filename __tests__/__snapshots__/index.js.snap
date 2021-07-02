@@ -1,5 +1,13 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`query-file-edit-count Using --after flag 1`] = `
+"[
+  [ '__fixtures__/does-not-contain-pattern.js', 2 ],
+  [ '__fixtures__/also-contains-pattern.js', 1 ],
+  [ '__fixtures__/contains-pattern.js', 0 ]
+]"
+`;
+
 exports[`query-file-edit-count default 1`] = `
 "[
   [ '__fixtures__/does-not-contain-pattern.js', 3 ],

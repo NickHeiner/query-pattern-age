@@ -90,8 +90,8 @@ describe('query-pattern-age', () => {
 
 describe('query-file-edit-count', () => {
   test.each([
-    ['default', pathToFixturesArgs]
-    // ['--after', '']
+    ['default', pathToFixturesArgs],
+    ['Using --after flag', [...pathToFixturesArgs, '--after', '2021-06-30']]
   ])('%s', async (_, flags) => {
     const {stdout} = await execTest(queryFileEditCountBinPath, flags);
     expect(stdout).toMatchSnapshot();
