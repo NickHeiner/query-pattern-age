@@ -66,7 +66,7 @@ describe('query-pattern-age', () => {
   describe('conflicting args', () => {
     test.each([
       [
-        ['--survey', '--hash-url-format', 'http://foo/%s'], 
+        ['--survey', '--hash-url-format', 'http://foo/s'], 
         '--survey is not compatible with --hash-url-format or --after, since they only apply to the git blame mode.'
       ],
       [
