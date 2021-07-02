@@ -4,20 +4,24 @@ const path = require('path');
 
 const log = require('../src/log');
 
-const binPath = path.resolve(__dirname, '..', packageJson.bin['query-pattern-age']);
+const queryPatternAgeBinPath = path.resolve(__dirname, '..', packageJson.bin['query-pattern-age']);
+const queryFileEditCountBinPath = path.resolve(__dirname, '..', packageJson.bin['query-file-edit-count']);
 const astArgs = ['--astSelector', 'CallExpression[callee.object.name=console][callee.property.name=log]'];
+
+const pathToFixturesArgs = ['--paths', '__fixtures__'];
 const baseArgs = [
-  '--paths', '__fixtures__', 
+  ...pathToFixturesArgs,
   ...astArgs
 ];
 
 /**
+ * @param {string} binPath
  * @param {string[]} args 
  * @param {import("execa").Options} opts
  * @returns 
  */
 // Setting "opts = {}" was the only way I could figure out to make opts optional.
-const execTest = (args, opts = {}) => {
+const execTest = (binPath, args, opts = {}) => {
   log.debug('Invoking', {args});
   return execa(binPath, args, {
     cwd: path.join(__dirname, '..'),
@@ -45,12 +49,17 @@ describe('query-pattern-age', () => {
         '--paths', path.join('__fixtures__', 'also-contains-pattern.js')
       ]
     ]
+  // I think TS is mistaken that this is unsafe.
+  // @ts-expect-error
   ])('%s', async (_, rawOpts, /** @type Parameters<typeof execTest> */...execArgs) => {
     const opts = {
       stdoutIsJson: true,
       ...rawOpts
     };
-    const {stdout} = await execTest(...execArgs);
+    const fullExecArgs = [queryPatternAgeBinPath, ...execArgs];
+    // I think TS is mistaken that this is unsafe.
+    // @ts-expect-error
+    const {stdout} = await execTest(...fullExecArgs);
     expect(opts.stdoutIsJson ? JSON.parse(stdout) : stdout).toMatchSnapshot();
   });
 
@@ -66,7 +75,7 @@ describe('query-pattern-age', () => {
       ]
     ])('flags are invalid: %p', async (flags, message) => {
       try {
-        await execTest([...baseArgs, ...flags]);
+        await execTest(queryPatternAgeBinPath, [...baseArgs, ...flags]);
         // ESLint is wrong. This global is available.
         // eslint-disable-next-line no-undef
         fail('The command should have failed');
@@ -76,5 +85,15 @@ describe('query-pattern-age', () => {
       }
     });
 
+  });
+});
+
+describe('query-file-edit-count', () => {
+  test.each([
+    ['default', pathToFixturesArgs]
+    // ['--after', '']
+  ])('%s', async (_, flags) => {
+    const {stdout} = await execTest(queryFileEditCountBinPath, flags);
+    expect(stdout).toMatchSnapshot();
   });
 });

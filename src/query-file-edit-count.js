@@ -3,7 +3,6 @@ const log = require('./log');
 const _ = require('lodash');
 const processLimitedLogged = require('./process-limited-logged');
 const execa = require('execa');
-const moment = require('moment');
 
 /**
  * 

@@ -7,7 +7,8 @@
   "author": "Nick Heiner <nth23@cornell.edu>",
   "license": "MIT",
   "bin": {
-    "query-pattern-age": "./bin/index.js"
+    "query-pattern-age": "./bin/index.js",
+    "query-file-edit-count": "./bin/query-file-edit-count.js"
   },
   "keywords": [
     "ast",
