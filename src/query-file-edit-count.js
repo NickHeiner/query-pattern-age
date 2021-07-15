@@ -23,7 +23,7 @@ async function queryFileEditCount(options) {
   if (options.after) {
     revListArgs.push(`--since=${options.after}`);
   }
-  revListArgs.push('head');
+  revListArgs.push('HEAD');
   const {stdout: revListResult} = await execa('git', revListArgs);
   const commitToStartFrom = revListResult.split('\n')[0];
 
@@ -33,7 +33,7 @@ async function queryFileEditCount(options) {
     {phase: 'running git log', level: 'debug', fileCount: files.length},
     files,
     async file => {
-      const {stdout: gitResults} = await execa('git', ['log', '--oneline', `${commitToStartFrom}..head`, '--', file]);
+      const {stdout: gitResults} = await execa('git', ['log', '--oneline', `${commitToStartFrom}..HEAD`, '--', file]);
       const commitCount = gitResults === '' ? 0 : gitResults.trim().split('\n').length;
       return [file, commitCount];
     }  
