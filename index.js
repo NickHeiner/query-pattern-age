@@ -155,7 +155,7 @@ async function getGitCommits(locations) {
         /**
          * @param {string} label 
          */
-        function demandLine(label) {˝
+        function demandLine(label) {
           const foundLine = _.find(linesAfterThisOne, {label});
           if (!foundLine) {
             throw new Error('Bug in this tool: did not find expected output in git blame.');

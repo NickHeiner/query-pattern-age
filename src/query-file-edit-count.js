@@ -16,7 +16,7 @@ const execa = require('execa');
 async function queryFileEditCount(options) {
   const files = await log.logPhase(
     {phase: 'finding files via globby', level: 'debug', ..._.pick(options, 'paths')},
-    () => globby(options.paths, { gitignore: true })
+    () => globby(options.paths, {gitignore: true})
   );
 
   const revListArgs = ['rev-list', '--reverse'];
