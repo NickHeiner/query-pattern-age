@@ -3,6 +3,7 @@
 const queryFileEditCount = require('../src/query-file-edit-count');
 const log = require('../src/log');
 const _ = require('lodash');
+const csvStringify = require('csv-stringify/lib/sync');
 
 const {argv} = require('yargs')
   .options({
@@ -23,7 +24,11 @@ async function main() {
   try {
     log.trace(argv);
     const result = await queryFileEditCount(_.pick(argv, 'paths', 'after'));
-    console.log(result);
+    const csv = csvStringify(
+      result.map(([path, editCount]) => ({path, editCount})),
+      {header: true}
+    );
+    console.log(csv);
   } catch (e) {
     // Just stringifying the error may omit some fields we care about.
     console.log(e);
