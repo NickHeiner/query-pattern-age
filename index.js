@@ -155,7 +155,7 @@ async function getGitCommits(locations) {
         /**
          * @param {string} label 
          */
-        function demandLine(label) {
+        function demandLine(label) {˝
           const foundLine = _.find(linesAfterThisOne, {label});
           if (!foundLine) {
             throw new Error('Bug in this tool: did not find expected output in git blame.');
@@ -176,6 +176,7 @@ async function getGitCommits(locations) {
   const commits = await processLimitedLogged(
     {phase: 'getting git timestamps', level: 'debug', countFiles: _.size(locations)},
     locations,
+    /** @ts-ignore I think this is just because I can't figure out how to have a @template extend another type. */
     execGitForLocation
   );
 

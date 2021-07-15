@@ -88,7 +88,15 @@ function formatDate(date) {
 }
 
 /**
- * @param {import("type-fest").PromiseValue<ReturnType<typeof queryPatternAge>>} result 
+ * @param {Omit<
+ *  import("../types").Commit, 'filePath'>[] | 
+ *  {
+ *    patternInstanceCount: number; 
+ *    filesWithInstanceCount: number, 
+ *    totalFilesSearchedCount: number; 
+ *    sampleFilesWithPattern: string[]
+ *  }
+ * } result 
  * @param {'raw' | 'pretty' } format
  * @param {string} hashUrlFormat
  * @param {string} astSelector
