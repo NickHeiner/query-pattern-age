@@ -69,3 +69,20 @@ Ignore time zones because for our granularity, it doesn't matter.
 
 ## Future Work
 * Add more exhaustive tests
+
+## Other Tools
+### `query-file-edit-count`
+**Status: unpolished**
+
+You may wonder which files in your codebase are edited the most. This can be useful for knowing which files to prioritize for tech debt cleanup, for instance. This tool answers that question:
+
+```
+$ query-file-edit-count --paths src 
+filePath,editCount
+src/a.js,10
+src/b.js,5
+```
+
+Optionally, pass `--after` to only consider commits after a certain date.
+
+To see progress updates, run with env var `loglevel=debug`.

@@ -6,9 +6,8 @@ const globby = require('globby');
 const readFile = promisify(require('fs').readFile.bind(require('fs')));
 const execa = require('execa');
 const moment = require('moment');
-const pLimit = require('p-limit');
-const os = require('os');
 const log = require('./src/log');
+const processLimitedLogged = require('./src/process-limited-logged');
 
 // TODO: Should this ditch ESLint and use https://github.com/estools/esquery directly?
 // That would require the user specifying babel config. ESQuery takes an AST. Currently, ESLint handles parsing.
@@ -72,10 +71,7 @@ async function queryPatternAge(options) {
     };
   }
 
-  const gitCommits = await log.logPhase(
-    {phase: 'getting git timestamps', level: 'debug', countFiles: _.size(files)},
-    (/** @type {any} */ logProgress) => getGitCommits(locations, logProgress)
-  );
+  const gitCommits = await getGitCommits(locations);
 
   const sortedGitCommits = _.sortBy(gitCommits, 'timestampS');
 
@@ -106,98 +102,83 @@ function getSample(items, size) {
 
 /**
  * @param {ReturnType<typeof getLocations>} locations 
- * @param {Function} logProgress 
  * @returns {Promise<Record<string, Omit<import("./types").Commit, 'filePath'>>>}
  */
-async function getGitCommits(locations, logProgress) {
-  // The type signature for pLimit is wrong.
-  // @ts-ignore
-  const limit = pLimit(os.cpus().length - 1);
-  let countFilesBlamed = 0;
-  
-  const timestampPromiseFns = /** @type {Promise<import("./types").Commit>[]} */ (/** @type {unknown} */ (
-    _.map(locations, (locationsForFile, filePath) => {
-      // if (filePath === 'packages/darwin/src/bundles/playmode/__tests__/mocks/videosStringsCommon.js') {
-      //   log.warn({locationsForFile});
-      // }
+async function getGitCommits(locations) {
 
-      const locationParams = _(locationsForFile)
-        .map(({line, endLine}) => ['-L', `${line},${endLine}`])
-        .flatten()
-        .value();
-      return limit(async () => {
-        const commandArgs = ['blame', filePath, ...locationParams, '--porcelain'];
-        const command = 'git';
-        const {stdout: gitResults} = await execa(command, commandArgs);
+  /**
+   * @param {import('type-fest').ValueOf<typeof locations>} locationsForFile 
+   * @param {string} filePath 
+   * @returns 
+   */
+  async function execGitForLocation(locationsForFile, filePath) {
+    const locationParams = _(locationsForFile)
+      .map(({line, endLine}) => ['-L', `${line},${endLine}`])
+      .flatten()
+      .value();
+    const commandArgs = ['blame', filePath, ...locationParams, '--porcelain'];
+    const command = 'git';
+    const {stdout: gitResults} = await execa(command, commandArgs);
 
-        countFilesBlamed++;
-        const logInterval = 20;
-        if (!(countFilesBlamed % logInterval)) {
-          logProgress({
-            countComplete: countFilesBlamed, 
-            totalCount: _.size(locations), 
-            // It's obvious what 100 represents in this context.
-            // eslint-disable-next-line no-magic-numbers
-            percentage: Math.floor(countFilesBlamed / _.size(locations) * 100)
-          });
+    const gitHashLength = 40;
+
+    // I don't know how to declare this inline.
+    /** @type {Omit<import("./types").Commit, 'count' | 'files'>[]} */
+    const initialReducerValue = [];
+
+    // TODO: To improve accuracy of results, emit a count of how often each commit appears in the blame, instead of
+    // assuming that all commits occur equally often.
+    return gitResults
+      .split('\n')
+      .map(line => {
+        // I don't know which assumptions about the git output are safe to make.
+
+        const firstSpaceIndex = line.indexOf(' ');
+        const firstEntry = line.substring(0, firstSpaceIndex);
+        if (firstEntry.length === gitHashLength) {
+          return {
+            label: 'hash',
+            value: firstEntry
+          };
+        }
+        return {
+          label: firstEntry,
+          value: line.substring(firstSpaceIndex + 1)
+        };
+      }).reduce((acc, line, index, lines) => {
+        if (line.label !== 'hash' || _.find(acc, {hash: line.value})) {
+          return acc;
+        }
+        
+        const linesAfterThisOne = lines.slice(index);
+
+        /**
+         * @param {string} label 
+         */
+        function demandLine(label) {
+          const foundLine = _.find(linesAfterThisOne, {label});
+          if (!foundLine) {
+            throw new Error('Bug in this tool: did not find expected output in git blame.');
+          }
+          return foundLine;
         }
 
-        const gitHashLength = 40;
+        return [...acc, {
+          hash: line.value,
+          filePath,
+          command: `${command} ${commandArgs.join(' ')}`,
+          timestampS: Number(demandLine('author-time').value),
+          author: demandLine('author').value
+        }];
+      }, initialReducerValue);
+  }
 
-        // I don't know how to declare this inline.
-        /** @type {Omit<import("./types").Commit, 'count' | 'files'>[]} */
-        const initialReducerValue = [];
-
-        // TODO: To improve accuracy of results, emit a count of how often each commit appears in the blame, instead of
-        // assuming that all commits occur equally often.
-        return gitResults
-          .split('\n')
-          .map(line => {
-            // I don't know which assumptions about the git output are safe to make.
-
-            const firstSpaceIndex = line.indexOf(' ');
-            const firstEntry = line.substring(0, firstSpaceIndex);
-            if (firstEntry.length === gitHashLength) {
-              return {
-                label: 'hash',
-                value: firstEntry
-              };
-            }
-            return {
-              label: firstEntry,
-              value: line.substring(firstSpaceIndex + 1)
-            };
-          }).reduce((acc, line, index, lines) => {
-            if (line.label !== 'hash' || _.find(acc, {hash: line.value})) {
-              return acc;
-            }
-            
-            const linesAfterThisOne = lines.slice(index);
-
-            /**
-             * @param {string} label 
-             */
-            function demandLine(label) {
-              const foundLine = _.find(linesAfterThisOne, {label});
-              if (!foundLine) {
-                throw new Error('Bug in this tool: did not find expected output in git blame.');
-              }
-              return foundLine;
-            }
-
-            return [...acc, {
-              hash: line.value,
-              filePath,
-              command: `${command} ${commandArgs.join(' ')}`,
-              timestampS: Number(demandLine('author-time').value),
-              author: demandLine('author').value
-            }];
-          }, initialReducerValue);
-      });
-    })
-  ));
-
-  const commits = await Promise.all(timestampPromiseFns);
+  const commits = await processLimitedLogged(
+    {phase: 'getting git timestamps', level: 'debug', countFiles: _.size(locations)},
+    locations,
+    /** @ts-ignore I think this is just because I can't figure out how to have a @template extend another type. */
+    execGitForLocation
+  );
 
   log.debug({commits});
 
@@ -217,7 +198,8 @@ async function getGitCommits(locations, logProgress) {
  * 
  * @template V
  * @param {Record<string, V>} object 
- * @param {(v: V, k: string) => boolean} predicate 
+ * @param {(v: V, k: string) => boolean} predicate
+ * @returns {Record<string, V>}
  */
 function filterValues(object, predicate) {
   return _.reduce(object, (acc, val, key) => {
